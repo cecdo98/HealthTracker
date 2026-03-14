@@ -36,6 +36,8 @@ fun ProfileScreen(
             .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        ProfileHeader()
+
         // Avatar com botão "+"
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(
@@ -125,6 +127,24 @@ fun ProfileScreen(
 }
 
 // ─────────────────────────────────────────────
+//  CABEÇALHO
+// ─────────────────────────────────────────────
+@Composable
+fun ProfileHeader() {
+    val displayName = "Perfil"
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(" $displayName", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark )
+
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
 //  CAMPO DE TEXTO REUTILIZÁVEL
 // ─────────────────────────────────────────────
 @Composable
@@ -170,7 +190,7 @@ fun ProfileTextField(
 fun ProfileScreenPreview() {
     MaterialTheme {
         Scaffold(
-            bottomBar = { BottomNavBar(selectedTab = 3) {} }
+            bottomBar = { BottomNavBar(selectedTab = 1) {} }
         ) { padding ->
             ProfileScreen(modifier = Modifier.padding(padding))
         }

@@ -8,8 +8,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -50,7 +52,8 @@ fun HealthTrackerScreen(userViewModel: UserViewModel = viewModel()) {
         bottomBar = { BottomNavBar(selectedTab) { selectedTab = it } }
     ) { padding ->
         when (selectedTab) {
-            3    -> ProfileScreen(modifier = Modifier.padding(padding), viewModel = userViewModel)
+            1    -> ProfileScreen(modifier = Modifier.padding(padding), viewModel = userViewModel)
+            2    -> SettingScreen()
             else -> HomeScreen(modifier = Modifier.padding(padding), viewModel = userViewModel)
         }
     }
@@ -206,40 +209,104 @@ fun EmotionalStateCard() {
     }
 }
 
+
+
 // ─────────────────────────────────────────────
 //  CARD DE ÁGUA
 // ─────────────────────────────────────────────
 @Composable
 fun WaterIntakeCard() {
-    val currentLiters = 1.6f; val goalLiters = 2.5f
-    val progress = currentLiters / goalLiters; val cups = 6
+    var totalMl by remember { mutableStateOf(750) }
+    val goalMl = 2500
+    val progress = totalMl.toFloat() / goalMl.toFloat()
+
+    val cupOptions = listOf(200, 250, 300, 350)
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = CardColor),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Quantidade de água", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+            Text(
+                "Quantidade de água",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark
+            )
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                WaterBottle(progress = progress, modifier = Modifier.size(64.dp))
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text("${currentLiters}L", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = PrimaryBlue)
-                        Spacer(Modifier.width(4.dp))
-                        Text("/ ${goalLiters}L", fontSize = 16.sp, color = TextLight, modifier = Modifier.padding(bottom = 4.dp))
-                    }
-                    Text("($cups copos registados)", fontSize = 12.sp, color = TextLight)
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp)),
-                        color = PrimaryBlue, trackColor = Color(0xFFE3EEFF)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // ── Garrafa animada com valor por baixo ──
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    WaterBottle(
+                        progress = progress,
+                        modifier = Modifier.size(72.dp)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "${totalMl}ml",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryBlue
+                    )
+                    Text(
+                        text = "/ ${goalMl}ml",
+                        fontSize = 10.sp,
+                        color = TextLight
                     )
                 }
+
+                Spacer(Modifier.width(16.dp))
+
+                // ── Grid 2×2 de botões ──
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    cupOptions.chunked(2).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { ml ->
+                                CupButton(
+                                    ml = ml,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        totalMl = (totalMl + ml).coerceAtMost(goalMl)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+//  BOTÃO DE COPO
+// ─────────────────────────────────────────────
+@Composable
+fun CupButton(ml: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryBlue),
+        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.4f)),
+        contentPadding = PaddingValues(4.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "🥤", fontSize = 16.sp)
+            Text(text = "$ml ml", fontSize = 10.sp, color = PrimaryBlue)
         }
     }
 }
@@ -250,12 +317,15 @@ fun WaterIntakeCard() {
 @Composable
 fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
     val animatedProgress by animateFloatAsState(
-        targetValue = progress, animationSpec = tween(1200, easing = FastOutSlowInEasing), label = "water"
+        targetValue = progress,
+        animationSpec = tween(1200, easing = FastOutSlowInEasing),
+        label = "water"
     )
     Canvas(modifier = modifier) {
         val w = size.width; val h = size.height
         val bottleTop = h * 0.2f; val bottleLeft = w * 0.25f; val bottleRight = w * 0.75f
-        val bottleBottom = h * 0.95f; val neckTop = h * 0.05f; val neckLeft = w * 0.38f; val neckRight = w * 0.62f
+        val bottleBottom = h * 0.95f; val neckTop = h * 0.05f
+        val neckLeft = w * 0.38f; val neckRight = w * 0.62f
         val path = Path().apply {
             moveTo(neckLeft, neckTop); lineTo(neckRight, neckTop); lineTo(neckRight, bottleTop)
             lineTo(bottleRight, bottleTop + h * 0.08f); lineTo(bottleRight, bottleBottom)
@@ -269,9 +339,15 @@ fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
             lineTo(bottleRight, bottleBottom); lineTo(bottleLeft, bottleBottom); close()
         }
         clipPath(path) { drawPath(waterPath, PrimaryBlue.copy(alpha = 0.8f)) }
-        drawPath(path, PrimaryBlue, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(
+            path, PrimaryBlue,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
     }
 }
+
+
+
 
 // ─────────────────────────────────────────────
 //  BOTTOM NAV BAR
@@ -280,9 +356,8 @@ fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
 fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val items = listOf(
         Icons.Default.Home     to "Início",
-        Icons.Default.BarChart to "Progresso",
-        Icons.Default.Star     to "Metas",
-        Icons.Default.Person   to "Perfil"
+        Icons.Default.Person   to "Perfil",
+        Icons.Default.Tune   to "Definições",
     )
     NavigationBar(containerColor = CardColor, tonalElevation = 8.dp) {
         items.forEachIndexed { index, (icon, label) ->
