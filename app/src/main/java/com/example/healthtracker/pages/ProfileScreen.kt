@@ -27,7 +27,15 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: UserViewModel = viewModel()
 ) {
-    var saved by remember { mutableStateOf(false) }
+    // Lê o estado persistido
+    val prefs by viewModel.prefs.collectAsState()
+
+    // Estado local dos campos (para edição antes de guardar)
+    var firstName by remember(prefs.firstName) { mutableStateOf(prefs.firstName) }
+    var lastName  by remember(prefs.lastName)  { mutableStateOf(prefs.lastName)  }
+    var weight    by remember(prefs.weight)    { mutableStateOf(prefs.weight)    }
+    var age       by remember(prefs.age)       { mutableStateOf(prefs.age)       }
+    var saved     by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -38,22 +46,18 @@ fun ProfileScreen(
     ) {
         ProfileHeader()
 
-        // Avatar com botão "+"
+        // Avatar
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), PrimaryBlue))
-                    ),
+                    .background(Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), PrimaryBlue))),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(60.dp)
+                    imageVector = Icons.Default.Person, contentDescription = null,
+                    tint = Color.White, modifier = Modifier.size(60.dp)
                 )
             }
             Box(
@@ -65,51 +69,51 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Alterar foto",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    imageVector = Icons.Default.Add, contentDescription = "Alterar foto",
+                    tint = Color.White, modifier = Modifier.size(16.dp)
                 )
             }
         }
 
         Spacer(Modifier.height(32.dp))
 
-        // Os campos leem e escrevem diretamente no ViewModel
         ProfileTextField(
             label = "PRIMEIRO NOME",
-            value = viewModel.firstName,
-            onValueChange = { viewModel.firstName = it; saved = false }
+            value = firstName,
+            onValueChange = { firstName = it; saved = false }
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
             label = "ÚLTIMO NOME",
-            value = viewModel.lastName,
-            onValueChange = { viewModel.lastName = it; saved = false }
+            value = lastName,
+            onValueChange = { lastName = it; saved = false }
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
             label = "PESO",
-            value = viewModel.weight,
-            onValueChange = { viewModel.weight = it; saved = false },
+            value = weight,
+            onValueChange = { weight = it; saved = false },
             keyboardType = KeyboardType.Number,
             suffix = "kg"
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
             label = "IDADE",
-            value = viewModel.age,
-            onValueChange = { viewModel.age = it; saved = false },
+            value = age,
+            onValueChange = { age = it; saved = false },
             keyboardType = KeyboardType.Number
         )
 
         Spacer(Modifier.height(28.dp))
 
         Button(
-            onClick = { saved = true },
+            onClick = {
+                viewModel.saveProfile(firstName, lastName, weight, age)
+                saved = true
+            },
             modifier = Modifier.fillMaxWidth(0.5f).height(44.dp),
             shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0))
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6AB0F5))
         ) {
             Text("Gravar", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
@@ -118,7 +122,7 @@ fun ProfileScreen(
             Spacer(Modifier.height(12.dp))
             Text(
                 text = "✓ Perfil guardado!",
-                color = Color(0xFF5CB85C),
+                color = Color(0xFF54A3F3),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -131,16 +135,12 @@ fun ProfileScreen(
 // ─────────────────────────────────────────────
 @Composable
 fun ProfileHeader() {
-    val displayName = "Perfil"
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(" $displayName", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark )
-
-        }
+        Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
     }
 }
 
@@ -158,10 +158,8 @@ fun ProfileTextField(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextLight,
-            letterSpacing = 0.8.sp
+            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+            color = TextLight, letterSpacing = 0.8.sp
         )
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -189,9 +187,7 @@ fun ProfileTextField(
 @Composable
 fun ProfileScreenPreview() {
     MaterialTheme {
-        Scaffold(
-            bottomBar = { BottomNavBar(selectedTab = 1) {} }
-        ) { padding ->
+        Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
             ProfileScreen(modifier = Modifier.padding(padding))
         }
     }
