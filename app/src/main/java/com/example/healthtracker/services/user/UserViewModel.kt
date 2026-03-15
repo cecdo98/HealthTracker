@@ -22,11 +22,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = UserPreferences()
         )
 
-    // ── Passos lidos do DataStore — o StepForegroundService atualiza em background ──
-    val todaySteps: StateFlow<Int> = prefs
-        .map { it.todaySteps }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
     // ── Atalhos de leitura ──
     val firstName     get() = prefs.value.firstName
     val lastName      get() = prefs.value.lastName
@@ -81,7 +76,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun saveDailyData(
-        steps:    Int = todaySteps.value,
+        steps:    Int = prefs.value.todaySteps,
         waterMl:  Int = prefs.value.todayWaterMl,
         calories: Int = prefs.value.todayCalories,
         emotion:  Int = prefs.value.todayEmotion

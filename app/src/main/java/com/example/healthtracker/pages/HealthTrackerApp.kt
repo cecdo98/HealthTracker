@@ -432,7 +432,7 @@ fun HomeScreenPreview() {
                 lastName     = "Silva",
                 todaySteps   = 7500,
                 stepsGoal    = 10000,
-                todayEmotion = 1,
+                todayEmotion = 0,
                 todayWaterMl = 1200,
                 waterGoalMl  = 2500
             )
