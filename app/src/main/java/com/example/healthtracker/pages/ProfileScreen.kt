@@ -20,22 +20,42 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthtracker.services.user.UserViewModel
 
 // ─────────────────────────────────────────────
-//  ECRÃ DE PERFIL
+//  WRAPPER — lê o ViewModel e passa para o Content
 // ─────────────────────────────────────────────
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: UserViewModel = viewModel()
 ) {
-    // Lê o estado persistido
     val prefs by viewModel.prefs.collectAsState()
 
-    // Estado local dos campos (para edição antes de guardar)
-    var firstName by remember(prefs.firstName) { mutableStateOf(prefs.firstName) }
-    var lastName  by remember(prefs.lastName)  { mutableStateOf(prefs.lastName)  }
-    var weight    by remember(prefs.weight)    { mutableStateOf(prefs.weight)    }
-    var age       by remember(prefs.age)       { mutableStateOf(prefs.age)       }
-    var saved     by remember { mutableStateOf(false) }
+    ProfileScreenContent(
+        modifier  = modifier,
+        firstName = prefs.firstName,
+        lastName  = prefs.lastName,
+        weight    = prefs.weight,
+        age       = prefs.age,
+        onSave    = { fn, ln, w, a -> viewModel.saveProfile(fn, ln, w, a) }
+    )
+}
+
+// ─────────────────────────────────────────────
+//  CONTENT — composable puro, sem ViewModel
+// ─────────────────────────────────────────────
+@Composable
+fun ProfileScreenContent(
+    modifier: Modifier = Modifier,
+    firstName: String = "",
+    lastName: String = "",
+    weight: String = "",
+    age: String = "",
+    onSave: (String, String, String, String) -> Unit = { _, _, _, _ -> }
+) {
+    var firstNameField by remember(firstName) { mutableStateOf(firstName) }
+    var lastNameField  by remember(lastName)  { mutableStateOf(lastName)  }
+    var weightField    by remember(weight)    { mutableStateOf(weight)    }
+    var ageField       by remember(age)       { mutableStateOf(age)       }
+    var saved          by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -78,42 +98,42 @@ fun ProfileScreen(
         Spacer(Modifier.height(32.dp))
 
         ProfileTextField(
-            label = "PRIMEIRO NOME",
-            value = firstName,
-            onValueChange = { firstName = it; saved = false }
+            label         = "PRIMEIRO NOME",
+            value         = firstNameField,
+            onValueChange = { firstNameField = it; saved = false }
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
-            label = "ÚLTIMO NOME",
-            value = lastName,
-            onValueChange = { lastName = it; saved = false }
+            label         = "ÚLTIMO NOME",
+            value         = lastNameField,
+            onValueChange = { lastNameField = it; saved = false }
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
-            label = "PESO",
-            value = weight,
-            onValueChange = { weight = it; saved = false },
-            keyboardType = KeyboardType.Number,
-            suffix = "kg"
+            label         = "PESO",
+            value         = weightField,
+            onValueChange = { weightField = it; saved = false },
+            keyboardType  = KeyboardType.Number,
+            suffix        = "kg"
         )
         Spacer(Modifier.height(12.dp))
         ProfileTextField(
-            label = "IDADE",
-            value = age,
-            onValueChange = { age = it; saved = false },
-            keyboardType = KeyboardType.Number
+            label         = "IDADE",
+            value         = ageField,
+            onValueChange = { ageField = it; saved = false },
+            keyboardType  = KeyboardType.Number
         )
 
         Spacer(Modifier.height(28.dp))
 
         Button(
             onClick = {
-                viewModel.saveProfile(firstName, lastName, weight, age)
+                onSave(firstNameField, lastNameField, weightField, ageField)
                 saved = true
             },
             modifier = Modifier.fillMaxWidth(0.5f).height(44.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6AB0F5))
+            shape    = RoundedCornerShape(8.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF6AB0F5))
         ) {
             Text("Gravar", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
@@ -121,9 +141,9 @@ fun ProfileScreen(
         if (saved) {
             Spacer(Modifier.height(12.dp))
             Text(
-                text = "✓ Perfil guardado!",
-                color = Color(0xFF54A3F3),
-                fontSize = 14.sp,
+                text       = "✓ Perfil guardado!",
+                color      = Color(0xFF54A3F3),
+                fontSize   = 14.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -136,9 +156,9 @@ fun ProfileScreen(
 @Composable
 fun ProfileHeader() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier              = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment     = Alignment.CenterVertically
     ) {
         Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
     }
@@ -157,17 +177,19 @@ fun ProfileTextField(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = label,
-            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-            color = TextLight, letterSpacing = 0.8.sp
+            text          = label,
+            fontSize      = 11.sp,
+            fontWeight    = FontWeight.SemiBold,
+            color         = TextLight,
+            letterSpacing = 0.8.sp
         )
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = TextLight) }} else null,
+            value           = value,
+            onValueChange   = onValueChange,
+            modifier        = Modifier.fillMaxWidth(),
+            singleLine      = true,
+            suffix          = if (suffix.isNotEmpty()) {{ Text(suffix, color = TextLight) }} else null,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor      = PrimaryBlue,
@@ -188,7 +210,13 @@ fun ProfileTextField(
 fun ProfileScreenPreview() {
     MaterialTheme {
         Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
-            ProfileScreen(modifier = Modifier.padding(padding))
+            ProfileScreenContent(
+                modifier  = Modifier.padding(padding),
+                firstName = "João",
+                lastName  = "Silva",
+                weight    = "75",
+                age       = "28"
+            )
         }
     }
 }

@@ -58,6 +58,7 @@ fun HealthTrackerScreen(userViewModel: UserViewModel = viewModel()) {
             else -> HomeScreenContent(
                 modifier          = Modifier.padding(padding),
                 firstName         = prefs.firstName,
+                lastName          = prefs.lastName,
                 todaySteps        = prefs.todaySteps,
                 stepsGoal         = prefs.stepsGoal,
                 todayEmotion      = prefs.todayEmotion,
@@ -77,6 +78,7 @@ fun HealthTrackerScreen(userViewModel: UserViewModel = viewModel()) {
 fun HomeScreenContent(
     modifier: Modifier = Modifier,
     firstName: String = "",
+    lastName: String = "",
     todaySteps: Int = 0,
     stepsGoal: Int = 10000,
     todayEmotion: Int = 2,
@@ -92,7 +94,7 @@ fun HomeScreenContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        HeaderSection(firstName = firstName)
+        HeaderSection(firstName = firstName , lastName = lastName)
         StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal)
         EmotionalStateCard(
             selectedEmotion   = todayEmotion,
@@ -110,8 +112,13 @@ fun HomeScreenContent(
 //  CABEÇALHO
 // ─────────────────────────────────────────────
 @Composable
-fun HeaderSection(firstName: String = "") {
-    val displayName = if (firstName.isNotBlank()) firstName else "utilizador"
+fun HeaderSection(firstName: String = "", lastName: String = "") {
+    val displayName = when {
+        firstName.isBlank() && lastName.isBlank() -> "utilizador"
+        lastName.isBlank()  -> firstName
+        firstName.isBlank() -> lastName
+        else                -> "$firstName $lastName"
+    }
     val today = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("pt")).format(Date())
 
     Row(
@@ -422,6 +429,7 @@ fun HomeScreenPreview() {
             HomeScreenContent(
                 modifier     = Modifier.padding(padding),
                 firstName    = "João",
+                lastName     = "Silva",
                 todaySteps   = 7500,
                 stepsGoal    = 10000,
                 todayEmotion = 1,

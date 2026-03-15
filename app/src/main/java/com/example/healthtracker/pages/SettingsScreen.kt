@@ -18,7 +18,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthtracker.services.user.UserViewModel
 
 // ─────────────────────────────────────────────
-//  ECRÃ DE DEFINIÇÕES
+//  WRAPPER — lê o ViewModel e passa para o Content
 // ─────────────────────────────────────────────
 @Composable
 fun SettingScreen(
@@ -27,25 +27,47 @@ fun SettingScreen(
 ) {
     val prefs by viewModel.prefs.collectAsState()
 
-    // Metas diárias
-    var stepsGoalText by remember(prefs.stepsGoal)   { mutableStateOf(prefs.stepsGoal.toString()) }
-    var waterGoalText by remember(prefs.waterGoalMl) { mutableStateOf(prefs.waterGoalMl.toString()) }
+    SettingScreenContent(
+        modifier    = modifier,
+        stepsGoal   = prefs.stepsGoal,
+        waterGoalMl = prefs.waterGoalMl,
+        notifWater  = prefs.notifWater,
+        notifSteps  = prefs.notifSteps,
+        notifMood   = prefs.notifMood,
+        onSave      = { steps, water, nw, ns, nm ->
+            viewModel.saveSettings(steps, water, nw, ns, nm)
+        }
+    )
+}
 
-    // Google account
-    var googleLinked by remember { mutableStateOf(false) }
+// ─────────────────────────────────────────────
+//  CONTENT — composable puro, sem ViewModel
+// ─────────────────────────────────────────────
+@Composable
+fun SettingScreenContent(
+    modifier: Modifier = Modifier,
+    stepsGoal: Int = 10000,
+    waterGoalMl: Int = 2500,
+    notifWater: Boolean = true,
+    notifSteps: Boolean = true,
+    notifMood: Boolean = false,
+    onSave: (Int, Int, Boolean, Boolean, Boolean) -> Unit = { _, _, _, _, _ -> }
+) {
+    // Estado local dos campos antes de guardar
+    var stepsGoalText by remember(stepsGoal)   { mutableStateOf(stepsGoal.toString()) }
+    var waterGoalText by remember(waterGoalMl) { mutableStateOf(waterGoalMl.toString()) }
+    var googleLinked  by remember { mutableStateOf(false) }
 
-    // Notificações
-    var notifWater      by remember(prefs.notifWater) { mutableStateOf(prefs.notifWater) }
-    var notifSteps      by remember(prefs.notifSteps) { mutableStateOf(prefs.notifSteps) }
-    var notifMood       by remember(prefs.notifMood)  { mutableStateOf(prefs.notifMood) }
+    var notifWaterState by remember(notifWater) { mutableStateOf(notifWater) }
+    var notifStepsState by remember(notifSteps) { mutableStateOf(notifSteps) }
+    var notifMoodState  by remember(notifMood)  { mutableStateOf(notifMood) }
     var remindWaterText by remember { mutableStateOf("") }
     var remindStepsText by remember { mutableStateOf("") }
     var remindMoodText  by remember { mutableStateOf("") }
     var freqWater       by remember { mutableStateOf("1h") }
     var freqSteps       by remember { mutableStateOf("1h") }
     var freqMood        by remember { mutableStateOf("1h") }
-
-    var settingsSaved by remember { mutableStateOf(false) }
+    var settingsSaved   by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -56,58 +78,55 @@ fun SettingScreen(
     ) {
         SettingHeader()
 
-        // ── Google Account ──
         GoogleAccountCard(
-            linked = googleLinked,
+            linked   = googleLinked,
             onToggle = { googleLinked = it; settingsSaved = false }
         )
 
-        // ── Metas diárias ──
         DailyTargetCard(
-            stepsGoalText = stepsGoalText,
-            waterGoalText = waterGoalText,
+            stepsGoalText  = stepsGoalText,
+            waterGoalText  = waterGoalText,
             onStepsChanged = { stepsGoalText = it; settingsSaved = false },
             onWaterChanged = { waterGoalText = it; settingsSaved = false }
         )
 
-        // ── Notificações ──
         NotificationsCard(
-            notifWater = notifWater, notifSteps = notifSteps, notifMood = notifMood,
+            notifWater = notifWaterState, notifSteps = notifStepsState, notifMood = notifMoodState,
             remindWaterText = remindWaterText, remindStepsText = remindStepsText, remindMoodText = remindMoodText,
             freqWater = freqWater, freqSteps = freqSteps, freqMood = freqMood,
-            onWaterToggle = { notifWater = it; settingsSaved = false },
-            onStepsToggle = { notifSteps = it; settingsSaved = false },
-            onMoodToggle  = { notifMood  = it; settingsSaved = false },
+            onWaterToggle       = { notifWaterState = it; settingsSaved = false },
+            onStepsToggle       = { notifStepsState = it; settingsSaved = false },
+            onMoodToggle        = { notifMoodState  = it; settingsSaved = false },
             onRemindWaterChange = { remindWaterText = it },
             onRemindStepsChange = { remindStepsText = it },
             onRemindMoodChange  = { remindMoodText  = it },
-            onFreqWaterChange = { freqWater = it },
-            onFreqStepsChange = { freqSteps = it },
-            onFreqMoodChange  = { freqMood  = it }
+            onFreqWaterChange   = { freqWater = it },
+            onFreqStepsChange   = { freqSteps = it },
+            onFreqMoodChange    = { freqMood  = it }
         )
 
-        // ── Exportar Relatórios ──
         ReportsCard()
 
-        // ── Guardar ──
         Button(
             onClick = {
-                val steps = stepsGoalText.toIntOrNull() ?: prefs.stepsGoal
-                val water = waterGoalText.toIntOrNull() ?: prefs.waterGoalMl
-                viewModel.saveSettings(steps, water, notifWater, notifSteps, notifMood)
+                val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState)
                 settingsSaved = true
             },
             modifier = Modifier.fillMaxWidth().height(44.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+            shape    = RoundedCornerShape(8.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
         ) {
             Text("Guardar definições", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
 
         if (settingsSaved) {
             Text(
-                text = "✓ Definições guardadas!",
-                color = Color(0xFF54A3F3), fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                text     = "✓ Definições guardadas!",
+                color    = Color(0xFF54A3F3),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
@@ -135,22 +154,21 @@ fun SettingHeader() {
 @Composable
 fun GoogleAccountCard(linked: Boolean, onToggle: (Boolean) -> Unit) {
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = CardColor),
+        modifier  = Modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.elevatedCardColors(containerColor = CardColor),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("Ligar conta google", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
             Switch(
-                checked = linked,
+                checked         = linked,
                 onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
+                colors          = SwitchDefaults.colors(
                     checkedThumbColor   = Color.White,
                     checkedTrackColor   = PrimaryBlue,
                     uncheckedTrackColor = Color(0xFFCBD5E0)
@@ -169,60 +187,55 @@ fun DailyTargetCard(
     onStepsChanged: (String) -> Unit, onWaterChanged: (String) -> Unit
 ) {
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = CardColor),
+        modifier  = Modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.elevatedCardColors(containerColor = CardColor),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Definir metas diaria", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
 
-            // PASSOS
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    "PASSOS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    color = TextLight, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp)
-                )
+                Text("PASSOS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = TextLight, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp))
                 OutlinedTextField(
-                    value = stepsGoalText,
+                    value         = stepsGoalText,
                     onValueChange = { if (it.length <= 6) onStepsChanged(it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
+                    modifier      = Modifier.weight(1f),
+                    singleLine    = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PrimaryBlue, unfocusedBorderColor = Color(0xFFCBD5E0),
                         focusedContainerColor = CardColor, unfocusedContainerColor = CardColor
                     ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape     = RoundedCornerShape(8.dp),
                     textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
                 )
             }
 
-            // ÁGUA
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    "Água", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    color = TextLight, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp)
-                )
+                Text("Água", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = TextLight, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp))
                 OutlinedTextField(
-                    value = waterGoalText,
+                    value         = waterGoalText,
                     onValueChange = { if (it.length <= 5) onWaterChanged(it) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    suffix = { Text("ml", color = TextLight, fontSize = 12.sp) },
+                    modifier      = Modifier.weight(1f),
+                    singleLine    = true,
+                    suffix        = { Text("ml", color = TextLight, fontSize = 12.sp) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PrimaryBlue, unfocusedBorderColor = Color(0xFFCBD5E0),
                         focusedContainerColor = CardColor, unfocusedContainerColor = CardColor
                     ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape     = RoundedCornerShape(8.dp),
                     textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
                 )
             }
@@ -245,14 +258,14 @@ fun NotificationsCard(
     val freqOptions = listOf("30m", "1h", "2h", "4h", "8h")
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = CardColor),
+        modifier  = Modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.elevatedCardColors(containerColor = CardColor),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Notificações", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
             Spacer(Modifier.height(4.dp))
-
             NotifRow("Água",   notifWater, remindWaterText, freqWater, freqOptions, onWaterToggle, onRemindWaterChange, onFreqWaterChange)
             HorizontalDivider(color = Color(0xFFF0F0F0), modifier = Modifier.padding(vertical = 4.dp))
             NotifRow("Passos", notifSteps, remindStepsText, freqSteps, freqOptions, onStepsToggle, onRemindStepsChange, onFreqStepsChange)
@@ -267,83 +280,52 @@ fun NotificationsCard(
 // ─────────────────────────────────────────────
 @Composable
 private fun NotifRow(
-    label: String,
-    checked: Boolean,
-    remindText: String,
-    selectedFreq: String,
-    freqOptions: List<String>,
-    onToggle: (Boolean) -> Unit,
-    onRemindChange: (String) -> Unit,
-    onFreqChange: (String) -> Unit
+    label: String, checked: Boolean, remindText: String,
+    selectedFreq: String, freqOptions: List<String>,
+    onToggle: (Boolean) -> Unit, onRemindChange: (String) -> Unit, onFreqChange: (String) -> Unit
 ) {
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Label
-        Text(
-            text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark,
-            modifier = Modifier.width(46.dp)
-        )
+        Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark, modifier = Modifier.width(46.dp))
 
-        // Toggle
         Switch(
             checked = checked, onCheckedChange = onToggle,
             modifier = Modifier.height(28.dp),
-            colors = SwitchDefaults.colors(
+            colors   = SwitchDefaults.colors(
                 checkedThumbColor   = Color.White,
                 checkedTrackColor   = PrimaryBlue,
                 uncheckedTrackColor = Color(0xFFCBD5E0)
             )
         )
 
-        // "Lembrar"
+        Spacer(Modifier.width(80.dp))
+
         Text("Lembrar", fontSize = 11.sp, color = TextLight)
 
-        // Campo lembrete
-        OutlinedTextField(
-            value = remindText, onValueChange = onRemindChange,
-            modifier = Modifier.weight(1f).height(44.dp),
-            singleLine = true, enabled = checked,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = PrimaryBlue,
-                unfocusedBorderColor    = Color(0xFFCBD5E0),
-                disabledBorderColor     = Color(0xFFE2E8F0),
-                focusedContainerColor   = CardColor,
-                unfocusedContainerColor = CardColor,
-                disabledContainerColor  = Color(0xFFF7F9FC)
-            ),
-            shape = RoundedCornerShape(6.dp),
-            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp)
-        )
-
-        // Dropdown frequência
         Box {
             OutlinedButton(
-                onClick = { if (checked) dropdownExpanded = true },
-                enabled = checked,
+                onClick  = { if (checked) dropdownExpanded = true },
+                enabled  = checked,
                 modifier = Modifier.height(44.dp).width(64.dp),
-                shape = RoundedCornerShape(6.dp),
+                shape    = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                 border = BorderStroke(1.dp, if (checked) Color(0xFFCBD5E0) else Color(0xFFE2E8F0)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDark)
             ) {
                 Text(selectedFreq, fontSize = 11.sp, color = if (checked) TextDark else TextLight)
-                Icon(
-                    Icons.Default.KeyboardArrowDown, contentDescription = null,
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null,
                     modifier = Modifier.size(14.dp),
-                    tint = if (checked) TextLight else Color(0xFFCBD5E0)
-                )
+                    tint = if (checked) TextLight else Color(0xFFCBD5E0))
             }
             DropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                 freqOptions.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option, fontSize = 13.sp) },
+                        text    = { Text(option, fontSize = 13.sp) },
                         onClick = { onFreqChange(option); dropdownExpanded = false }
                     )
                 }
@@ -358,35 +340,31 @@ private fun NotifRow(
 @Composable
 fun ReportsCard() {
     val exportItems = listOf(
-        Triple(Icons.Default.DirectionsWalk,    Color(0xFF4A90E2), "Passos"),
+        Triple(Icons.Default.DirectionsWalk,     Color(0xFF4A90E2), "Passos"),
         Triple(Icons.Default.SentimentSatisfied, Color(0xFFFFB347), "Humor"),
         Triple(Icons.Default.WaterDrop,          Color(0xFF5BC8F5), "Água")
     )
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = CardColor),
+        modifier  = Modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.elevatedCardColors(containerColor = CardColor),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Exportar relatórios", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
             Spacer(Modifier.height(12.dp))
-
-            // 3 botões individuais
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 exportItems.forEach { (icon, tint, label) ->
                     ExportItemButton(icon = icon, iconTint = tint, label = label, modifier = Modifier.weight(1f))
                 }
             }
-
             Spacer(Modifier.height(10.dp))
-
-            // Exportar todos
             Button(
-                onClick = { /* TODO */ },
+                onClick  = { },
                 modifier = Modifier.fillMaxWidth().height(40.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                shape    = RoundedCornerShape(20.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
             ) {
                 Text("Exportar todos", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
@@ -397,22 +375,17 @@ fun ReportsCard() {
 @Composable
 private fun ExportItemButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: Color,
-    label: String,
-    modifier: Modifier = Modifier
+    iconTint: Color, label: String, modifier: Modifier = Modifier
 ) {
     OutlinedButton(
-        onClick = { /* TODO: exportar $label */ },
-        modifier = modifier.height(68.dp),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Color(0xFFCBD5E0)),
+        onClick        = { },
+        modifier       = modifier.height(68.dp),
+        shape          = RoundedCornerShape(12.dp),
+        border         = BorderStroke(1.dp, Color(0xFFCBD5E0)),
         contentPadding = PaddingValues(4.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDark)
+        colors         = ButtonDefaults.outlinedButtonColors(contentColor = TextDark)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(26.dp))
             Spacer(Modifier.height(4.dp))
             Text("Exportar", fontSize = 11.sp, color = TextLight)
@@ -428,7 +401,14 @@ private fun ExportItemButton(
 fun SettingScreenPreview() {
     MaterialTheme {
         Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-            SettingScreen(modifier = Modifier.padding(padding))
+            SettingScreenContent(
+                modifier    = Modifier.padding(padding),
+                stepsGoal   = 10000,
+                waterGoalMl = 2500,
+                notifWater  = true,
+                notifSteps  = false,
+                notifMood   = false
+            )
         }
     }
 }
