@@ -101,6 +101,15 @@ class StepForegroundService : Service(), SensorEventListener {
         serviceScope.launch {
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val prefs = repo.preferences.first()
+
+            savedStepsToday = if (prefs.todayDate == today) {
+                prefs.todaySteps
+            } else {
+                //reset diario
+                repo.resetDailyData(today)
+                0
+            }
+            //salva dados diarios- apaga o anterior
             repo.saveDailyData(
                 date     = today,
                 steps    = todaySteps,
