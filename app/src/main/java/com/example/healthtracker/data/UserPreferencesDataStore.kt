@@ -17,19 +17,24 @@ data class UserPreferences(
     val lastName:  String = "",
     val weight:    String = "",
     val age:       String = "",
+
     // Metas diárias
     val stepsGoal:   Int = 10000,
     val waterGoalMl: Int = 2500,
+
     // Notificações
-    val notifWater: Boolean = true,
-    val notifSteps: Boolean = true,
+    val notifWater: Boolean = false,
+    val notifSteps: Boolean = false,
     val notifMood:  Boolean = false,
+
     // Frequências de notificação
     val waterFreq: String = "1h",
-    val moodFreq:  String = "4h",
+    val moodFreq:  String = "1h",
+
     // Preferências visuais
     val darkMode:     Boolean = false,
     val googleLinked: Boolean = false,
+
     // Dados diários
     val todayDate:     String = "",
     val todaySteps:    Int    = 0,
@@ -83,11 +88,11 @@ class UserPreferencesDataStore(private val context: Context) {
                 age          = p[PrefsKeys.AGE]           ?: "",
                 stepsGoal    = p[PrefsKeys.STEPS_GOAL]    ?: 10000,
                 waterGoalMl  = p[PrefsKeys.WATER_GOAL]    ?: 2500,
-                notifWater   = p[PrefsKeys.NOTIF_WATER]   ?: true,
-                notifSteps   = p[PrefsKeys.NOTIF_STEPS]   ?: true,
+                notifWater   = p[PrefsKeys.NOTIF_WATER]   ?: false,
+                notifSteps   = p[PrefsKeys.NOTIF_STEPS]   ?: false,
                 notifMood    = p[PrefsKeys.NOTIF_MOOD]    ?: false,
                 waterFreq    = p[PrefsKeys.WATER_FREQ]    ?: "1h",
-                moodFreq     = p[PrefsKeys.MOOD_FREQ]     ?: "4h",
+                moodFreq     = p[PrefsKeys.MOOD_FREQ]     ?: "1h",
                 darkMode     = p[PrefsKeys.DARK_MODE]     ?: false,
                 googleLinked = p[PrefsKeys.GOOGLE_LINKED] ?: false,
                 todayDate    = p[PrefsKeys.TODAY_DATE]    ?: "",

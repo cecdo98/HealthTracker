@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -120,11 +121,11 @@ fun SettingScreenContent(
     modifier: Modifier = Modifier,
     stepsGoal: Int = 10000,
     waterGoalMl: Int = 2500,
-    notifWater: Boolean = true,
-    notifSteps: Boolean = true,
+    notifWater: Boolean = false,
+    notifSteps: Boolean = false,
     notifMood: Boolean = false,
     waterFreq: String = "1h",
-    moodFreq: String = "4h",
+    moodFreq: String = "1h",
     googleLinked: Boolean = false,
     isDarkMode: Boolean = false,
     onDarkModeToggle: (Boolean) -> Unit = {},
@@ -152,7 +153,9 @@ fun SettingScreenContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Cabeçalho
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.Center) {
             Text("Definições", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
@@ -161,7 +164,9 @@ fun SettingScreenContent(
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically,
@@ -183,10 +188,33 @@ fun SettingScreenContent(
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Ligar conta google", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_google),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = Color.Unspecified
+                    )
+                    Column {
+                        Text(
+                            "Ligar conta google",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = c.textPrimary
+                        )
+                        Text(
+                            if (googleState) "Ativado" else "Desativado",
+                            fontSize = 12.sp,
+                            color = c.textSecondary
+                        )
+                    }
+                }
                 Switch(checked = googleState, onCheckedChange = { googleState = it; settingsSaved = false },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White,
                         checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
@@ -250,7 +278,9 @@ fun SettingScreenContent(
                     waterFreqState, moodFreqState, googleState)
                 settingsSaved = true
             },
-            modifier = Modifier.fillMaxWidth().height(44.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp),
             shape    = RoundedCornerShape(8.dp),
             colors   = ButtonDefaults.buttonColors(containerColor = c.primary)
         ) {
@@ -308,7 +338,9 @@ private fun NotifRowWithFreq(
     var dropdownExpanded by remember { mutableStateOf(false) }
     val freqOptions = NOTIF_FREQUENCIES.keys.toList()
 
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(modifier = Modifier.weight(1f)) {
@@ -321,7 +353,9 @@ private fun NotifRowWithFreq(
         Box {
             OutlinedButton(
                 onClick = { if (checked) dropdownExpanded = true }, enabled = checked,
-                modifier = Modifier.height(40.dp).width(72.dp), shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .height(40.dp)
+                    .width(72.dp), shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, if (checked) c.primary.copy(alpha = 0.5f) else c.inputBorder),
                 contentPadding = PaddingValues(horizontal = 6.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = if (checked) c.primary else c.textSecondary)
@@ -349,7 +383,9 @@ private fun NotifRowWithFreq(
 private fun NotifRowSteps(
     checked: Boolean, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween) {
         Column(modifier = Modifier.weight(1f)) {
@@ -383,7 +419,9 @@ fun ReportsCard() {
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 exportItems.forEach { (icon, tint, label) ->
-                    OutlinedButton(onClick = { }, modifier = Modifier.weight(1f).height(68.dp),
+                    OutlinedButton(onClick = { }, modifier = Modifier
+                        .weight(1f)
+                        .height(68.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, c.inputBorder), contentPadding = PaddingValues(4.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = c.textPrimary)) {
@@ -397,7 +435,9 @@ fun ReportsCard() {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Button(onClick = { }, modifier = Modifier.fillMaxWidth().height(40.dp),
+            Button(onClick = { }, modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = c.primary)) {
                 Text("Exportar todos", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -415,7 +455,11 @@ fun SettingScreenLightPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false)
+                SettingScreenContent(
+                    modifier = Modifier.padding(padding),
+                    isDarkMode = false,
+                    googleLinked = false
+                )
             }
         }
     }
@@ -427,7 +471,11 @@ fun SettingScreenDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true)
+                SettingScreenContent(
+                    modifier = Modifier.padding(padding),
+                    isDarkMode = true,
+                    googleLinked = true
+                )
             }
         }
     }
