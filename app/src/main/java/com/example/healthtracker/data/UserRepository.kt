@@ -43,6 +43,7 @@ class UserRepository(context: Context) {
     suspend fun resetDailyData(newDate: String) =
         dataStore.resetDailyData(newDate)
 
+
     // ── Room — histórico ──
     fun getToday(date: String) = dao.getByDate(date)
 

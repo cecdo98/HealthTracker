@@ -33,16 +33,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val todayEmotion  get() = prefs.value.todayEmotion
     val todayCalories get() = prefs.value.todayCalories
 
-    // ── Reset diário ──
-    init {
-        viewModelScope.launch {
-            val today      = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val savedPrefs = repo.preferences.first()
-            if (savedPrefs.todayDate != today) {
-                repo.resetDailyData(today)
-            }
-        }
-    }
+
 
     // ──────────────────────────────────────────
     //  PERFIL

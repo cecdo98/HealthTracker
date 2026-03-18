@@ -193,7 +193,7 @@ fun DailyTargetCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Definir metas diaria", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+            Text("Definições", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
