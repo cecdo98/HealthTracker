@@ -16,7 +16,9 @@ data class UserPreferences(
     val firstName: String = "",
     val lastName:  String = "",
     val weight:    String = "",
+    val height:    String = "",
     val age:       String = "",
+    val isMetric:  Boolean = true, // true: kg/cm, false: lbs/inches
 
     // Metas diárias
     val stepsGoal:   Int = 10000,
@@ -51,7 +53,9 @@ object PrefsKeys {
     val FIRST_NAME = stringPreferencesKey("first_name")
     val LAST_NAME  = stringPreferencesKey("last_name")
     val WEIGHT     = stringPreferencesKey("weight")
+    val HEIGHT     = stringPreferencesKey("height")
     val AGE        = stringPreferencesKey("age")
+    val IS_METRIC  = booleanPreferencesKey("is_metric")
     // Metas
     val STEPS_GOAL = intPreferencesKey("steps_goal")
     val WATER_GOAL = intPreferencesKey("water_goal_ml")
@@ -85,7 +89,9 @@ class UserPreferencesDataStore(private val context: Context) {
                 firstName    = p[PrefsKeys.FIRST_NAME]    ?: "",
                 lastName     = p[PrefsKeys.LAST_NAME]     ?: "",
                 weight       = p[PrefsKeys.WEIGHT]        ?: "",
+                height       = p[PrefsKeys.HEIGHT]        ?: "",
                 age          = p[PrefsKeys.AGE]           ?: "",
+                isMetric     = p[PrefsKeys.IS_METRIC]     ?: true,
                 stepsGoal    = p[PrefsKeys.STEPS_GOAL]    ?: 10000,
                 waterGoalMl  = p[PrefsKeys.WATER_GOAL]    ?: 2500,
                 notifWater   = p[PrefsKeys.NOTIF_WATER]   ?: false,
@@ -103,12 +109,14 @@ class UserPreferencesDataStore(private val context: Context) {
             )
         }
 
-    suspend fun saveProfile(firstName: String, lastName: String, weight: String, age: String) {
+    suspend fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) {
         context.appDataStore.edit { p ->
             p[PrefsKeys.FIRST_NAME] = firstName
             p[PrefsKeys.LAST_NAME]  = lastName
             p[PrefsKeys.WEIGHT]     = weight
+            p[PrefsKeys.HEIGHT]     = height
             p[PrefsKeys.AGE]        = age
+            p[PrefsKeys.IS_METRIC]  = isMetric
         }
     }
 

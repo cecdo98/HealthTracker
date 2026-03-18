@@ -26,7 +26,9 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val firstName     get() = prefs.value.firstName
     val lastName      get() = prefs.value.lastName
     val weight        get() = prefs.value.weight
+    val height        get() = prefs.value.height
     val age           get() = prefs.value.age
+    val isMetric      get() = prefs.value.isMetric
     val stepsGoal     get() = prefs.value.stepsGoal
     val waterGoalMl   get() = prefs.value.waterGoalMl
     val todayWaterMl  get() = prefs.value.todayWaterMl
@@ -36,8 +38,8 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     // ──────────────────────────────────────────
     //  PERFIL
     // ──────────────────────────────────────────
-    fun saveProfile(firstName: String, lastName: String, weight: String, age: String) {
-        viewModelScope.launch { repo.saveProfile(firstName, lastName, weight, age) }
+    fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) {
+        viewModelScope.launch { repo.saveProfile(firstName, lastName, weight, height, age, isMetric) }
     }
 
     // ──────────────────────────────────────────

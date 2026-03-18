@@ -143,7 +143,7 @@ class StepForegroundService : Service(), SensorEventListener {
             .setContentText("Passos hoje: $steps")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)       // não pode ser dispensada pelo utilizador
+            .setOngoing(false)       // não pode ser dispensada pelo utilizador
             .setSilent(true)        // sem som
             .build()
     }

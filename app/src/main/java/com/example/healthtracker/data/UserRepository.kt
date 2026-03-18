@@ -12,8 +12,8 @@ class UserRepository(context: Context) {
 
     val preferences: Flow<UserPreferences> = dataStore.flow
 
-    suspend fun saveProfile(firstName: String, lastName: String, weight: String, age: String) =
-        dataStore.saveProfile(firstName, lastName, weight, age)
+    suspend fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) =
+        dataStore.saveProfile(firstName, lastName, weight, height, age, isMetric)
 
     suspend fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
