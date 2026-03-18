@@ -8,33 +8,36 @@ import kotlinx.coroutines.flow.Flow
 class UserRepository(context: Context) {
 
     private val dataStore = UserPreferencesDataStore(context)
-    private val dao       = AppDatabase.getInstance(context).dailyEntryDao()  // ← novo
+    private val dao       = AppDatabase.getInstance(context).dailyEntryDao()
 
     val preferences: Flow<UserPreferences> = dataStore.flow
 
-    // ── DataStore — perfil e definições (igual ao que já tens) ──
     suspend fun saveProfile(firstName: String, lastName: String, weight: String, age: String) =
         dataStore.saveProfile(firstName, lastName, weight, age)
 
     suspend fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
-        notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean
-    ) = dataStore.saveSettings(stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood)
+        notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
+        waterFreq: String, moodFreq: String,
+        darkMode: Boolean, googleLinked: Boolean
+    ) = dataStore.saveSettings(
+        stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood,
+        waterFreq, moodFreq, darkMode, googleLinked
+    )
 
-    // ── DataStore — dados do dia atual (igual ao que já tens) ──
+    suspend fun saveDarkMode(enabled: Boolean) =
+        dataStore.saveDarkMode(enabled)
+
     suspend fun saveDailyData(
         date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int
     ) {
-        // Guarda no DataStore (dia atual — acesso rápido)
         dataStore.saveDailyData(date, steps, waterMl, calories, emotion)
-
-        // Guarda no Room (histórico permanente)
         dao.upsert(
             DailyEntryEntity(
-                date = date,
-                steps = steps,
-                waterMl = waterMl,
-                calories = calories,
+                date         = date,
+                steps        = steps,
+                waterMl      = waterMl,
+                calories     = calories,
                 emotionIndex = emotion
             )
         )
@@ -43,9 +46,6 @@ class UserRepository(context: Context) {
     suspend fun resetDailyData(newDate: String) =
         dataStore.resetDailyData(newDate)
 
-
-    // ── Room — histórico ──
     fun getToday(date: String) = dao.getByDate(date)
-
-    fun getLast30Days() = dao.getLast30Days()
+    fun getLast30Days()        = dao.getLast30Days()
 }

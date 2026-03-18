@@ -35,8 +35,6 @@ import java.util.Locale
 
 // ─────────────────────────────────────────────
 //  CORES — atalhos para compatibilidade
-//  (usados nos outros ficheiros que ainda
-//   referenciam estas variáveis)
 // ─────────────────────────────────────────────
 val BackgroundColor   = LightColors.background
 val CardColor         = LightColors.card
@@ -47,20 +45,24 @@ val BottomBarSelected = LightColors.navSelected
 val BottomBarUnsel    = LightColors.navUnselected
 
 // ─────────────────────────────────────────────
-//  ENTRY POINT — fornece as cores ao tema
+//  ENTRY POINT
 // ─────────────────────────────────────────────
 @Composable
-fun HealthTrackerApp() {
-    var isDarkMode by remember { mutableStateOf(false) }
-    val colors = if (isDarkMode) DarkColors else LightColors
+fun HealthTrackerApp(userViewModel: UserViewModel = viewModel()) {
+    val prefs by userViewModel.prefs.collectAsState()
+
+    // ← lido do DataStore, persiste entre sessões
+    val isDarkMode = prefs.darkMode
+    val colors     = if (isDarkMode) DarkColors else LightColors
 
     CompositionLocalProvider(LocalAppColors provides colors) {
         MaterialTheme(
             colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
         ) {
             HealthTrackerScreen(
+                userViewModel    = userViewModel,
                 isDarkMode       = isDarkMode,
-                onDarkModeToggle = { isDarkMode = it }
+                onDarkModeToggle = { userViewModel.saveDarkMode(it) }  // ← guarda no DataStore
             )
         }
     }
@@ -163,8 +165,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "") {
         }
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
+                .size(48.dp).clip(CircleShape)
                 .background(Brush.linearGradient(colors = listOf(c.primary, Color(0xFF6AB0F5)))),
             contentAlignment = Alignment.Center
         ) {
@@ -193,10 +194,8 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000) {
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressRing(
-                        progress = progress, trackColor = c.primary.copy(alpha = 0.15f),
-                        activeColor = c.primary, size = 72.dp, strokeWidth = 8.dp
-                    )
+                    CircularProgressRing(progress = progress, trackColor = c.primary.copy(alpha = 0.15f),
+                        activeColor = c.primary, size = 72.dp, strokeWidth = 8.dp)
                     Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = c.primary, modifier = Modifier.size(32.dp))
                 }
                 Spacer(Modifier.width(16.dp))
@@ -220,17 +219,14 @@ fun CircularProgressRing(
     progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp
 ) {
     val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-        label = "progress"
+        targetValue = progress, animationSpec = tween(1000, easing = FastOutSlowInEasing), label = "progress"
     )
     Canvas(modifier = Modifier.size(size)) {
         val stroke   = strokeWidth.toPx()
         val diameter = minOf(this.size.width, this.size.height) - stroke
         val topLeft  = Offset(stroke / 2, stroke / 2)
         drawArc(color = trackColor, startAngle = -90f, sweepAngle = 360f, useCenter = false,
-            topLeft = topLeft, size = Size(diameter, diameter),
-            style = Stroke(width = stroke, cap = StrokeCap.Round))
+            topLeft = topLeft, size = Size(diameter, diameter), style = Stroke(width = stroke, cap = StrokeCap.Round))
         drawArc(color = activeColor, startAngle = -90f, sweepAngle = 360f * animatedProgress,
             useCenter = false, topLeft = topLeft, size = Size(diameter, diameter),
             style = Stroke(width = stroke, cap = StrokeCap.Round))
@@ -243,10 +239,7 @@ fun CircularProgressRing(
 @Composable
 fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}) {
     val c = AppTheme.colors
-    val emotions = listOf(
-        "😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro",
-        "😢" to "Triste", "😤" to "Estressado"
-    )
+    val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = c.card),
@@ -385,14 +378,10 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             NavigationBarItem(
                 selected = selectedTab == index,
                 onClick  = { onTabSelected(index) },
-                icon = {
-                    Icon(imageVector = icon, contentDescription = label,
-                        tint = if (selectedTab == index) c.navSelected else c.navUnselected)
-                },
-                label = {
-                    Text(text = label, fontSize = 10.sp,
-                        color = if (selectedTab == index) c.navSelected else c.navUnselected)
-                },
+                icon = { Icon(imageVector = icon, contentDescription = label,
+                    tint = if (selectedTab == index) c.navSelected else c.navUnselected) },
+                label = { Text(text = label, fontSize = 10.sp,
+                    color = if (selectedTab == index) c.navSelected else c.navUnselected) },
                 colors = NavigationBarItemDefaults.colors(indicatorColor = c.primary.copy(alpha = 0.12f))
             )
         }
@@ -400,27 +389,19 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 }
 
 // ─────────────────────────────────────────────
-//  PREVIEW
+//  PREVIEWS
 // ─────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun HomeScreenPreview() {
+fun HomeScreenLightPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
-            Scaffold(
-                containerColor = LightColors.background,
-                bottomBar      = { BottomNavBar(selectedTab = 0) {} }
-            ) { padding ->
-                HomeScreenContent(
-                    modifier     = Modifier.padding(padding),
-                    firstName    = "João",
-                    lastName     = "Silva",
-                    todaySteps   = 7500,
-                    stepsGoal    = 10000,
-                    todayEmotion = 0,
-                    todayWaterMl = 1200,
-                    waterGoalMl  = 2500
-                )
+            Scaffold(containerColor = LightColors.background,
+                bottomBar = { BottomNavBar(0) {} }) { padding ->
+                HomeScreenContent(modifier = Modifier.padding(padding),
+                    firstName = "João", lastName = "Silva",
+                    todaySteps = 7500, stepsGoal = 10000,
+                    todayEmotion = 0, todayWaterMl = 1200, waterGoalMl = 2500)
             }
         }
     }
@@ -431,20 +412,12 @@ fun HomeScreenPreview() {
 fun HomeScreenDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
-            Scaffold(
-                containerColor = DarkColors.background,
-                bottomBar      = { BottomNavBar(selectedTab = 0) {} }
-            ) { padding ->
-                HomeScreenContent(
-                    modifier     = Modifier.padding(padding),
-                    firstName    = "João",
-                    lastName     = "Silva",
-                    todaySteps   = 7500,
-                    stepsGoal    = 10000,
-                    todayEmotion = 0,
-                    todayWaterMl = 1200,
-                    waterGoalMl  = 2500
-                )
+            Scaffold(containerColor = DarkColors.background,
+                bottomBar = { BottomNavBar(0) {} }) { padding ->
+                HomeScreenContent(modifier = Modifier.padding(padding),
+                    firstName = "João", lastName = "Silva",
+                    todaySteps = 7500, stepsGoal = 10000,
+                    todayEmotion = 0, todayWaterMl = 1200, waterGoalMl = 2500)
             }
         }
     }

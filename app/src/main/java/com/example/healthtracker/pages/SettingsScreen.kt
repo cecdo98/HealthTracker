@@ -83,7 +83,7 @@ fun cancelRepeatingNotification(context: Context, type: String, requestCode: Int
 }
 
 // ─────────────────────────────────────────────
-//  WRAPPER
+//  WRAPPER — lê ViewModel e passa para o Content
 // ─────────────────────────────────────────────
 @Composable
 fun SettingScreen(
@@ -93,6 +93,7 @@ fun SettingScreen(
     onDarkModeToggle: (Boolean) -> Unit = {}
 ) {
     val prefs by viewModel.prefs.collectAsState()
+
     SettingScreenContent(
         modifier         = modifier,
         stepsGoal        = prefs.stepsGoal,
@@ -100,16 +101,19 @@ fun SettingScreen(
         notifWater       = prefs.notifWater,
         notifSteps       = prefs.notifSteps,
         notifMood        = prefs.notifMood,
+        waterFreq        = prefs.waterFreq,
+        moodFreq         = prefs.moodFreq,
+        googleLinked     = prefs.googleLinked,
         isDarkMode       = isDarkMode,
         onDarkModeToggle = onDarkModeToggle,
-        onSave           = { steps, water, nw, ns, nm ->
-            viewModel.saveSettings(steps, water, nw, ns, nm)
+        onSave           = { steps, water, nw, ns, nm, wf, mf, gl ->
+            viewModel.saveSettings(steps, water, nw, ns, nm, wf, mf, isDarkMode, gl)
         }
     )
 }
 
 // ─────────────────────────────────────────────
-//  CONTENT
+//  CONTENT — composable puro
 // ─────────────────────────────────────────────
 @Composable
 fun SettingScreenContent(
@@ -119,22 +123,25 @@ fun SettingScreenContent(
     notifWater: Boolean = true,
     notifSteps: Boolean = true,
     notifMood: Boolean = false,
+    waterFreq: String = "1h",
+    moodFreq: String = "4h",
+    googleLinked: Boolean = false,
     isDarkMode: Boolean = false,
     onDarkModeToggle: (Boolean) -> Unit = {},
-    onSave: (Int, Int, Boolean, Boolean, Boolean) -> Unit = { _, _, _, _, _ -> }
+    onSave: (Int, Int, Boolean, Boolean, Boolean, String, String, Boolean) -> Unit = { _,_,_,_,_,_,_,_ -> }
 ) {
     val c       = AppTheme.colors
     val context = LocalContext.current
 
-    var stepsGoalText   by remember(stepsGoal)   { mutableStateOf(stepsGoal.toString()) }
-    var waterGoalText   by remember(waterGoalMl) { mutableStateOf(waterGoalMl.toString()) }
-    var googleLinked    by remember { mutableStateOf(false) }
-    var notifWaterState by remember(notifWater)  { mutableStateOf(notifWater) }
-    var notifStepsState by remember(notifSteps)  { mutableStateOf(notifSteps) }
-    var notifMoodState  by remember(notifMood)   { mutableStateOf(notifMood) }
-    var waterFreq       by remember { mutableStateOf("1h") }
-    var moodFreq        by remember { mutableStateOf("4h") }
-    var settingsSaved   by remember { mutableStateOf(false) }
+    var stepsGoalText    by remember(stepsGoal)    { mutableStateOf(stepsGoal.toString()) }
+    var waterGoalText    by remember(waterGoalMl)  { mutableStateOf(waterGoalMl.toString()) }
+    var googleState      by remember(googleLinked) { mutableStateOf(googleLinked) }
+    var notifWaterState  by remember(notifWater)   { mutableStateOf(notifWater) }
+    var notifStepsState  by remember(notifSteps)   { mutableStateOf(notifSteps) }
+    var notifMoodState   by remember(notifMood)    { mutableStateOf(notifMood) }
+    var waterFreqState   by remember(waterFreq)    { mutableStateOf(waterFreq) }
+    var moodFreqState    by remember(moodFreq)     { mutableStateOf(moodFreq) }
+    var settingsSaved    by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -150,7 +157,7 @@ fun SettingScreenContent(
             Text("Definições", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
 
-        // Modo escuro
+        // ── Modo escuro ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -172,7 +179,7 @@ fun SettingScreenContent(
             }
         }
 
-        // Google account
+        // ── Google account ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -180,55 +187,67 @@ fun SettingScreenContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Ligar conta google", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
-                Switch(checked = googleLinked, onCheckedChange = { googleLinked = it; settingsSaved = false },
+                Switch(checked = googleState, onCheckedChange = { googleState = it; settingsSaved = false },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.White,
                         checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
             }
         }
 
-        // Metas diárias
+        // ── Metas diárias ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Definir metas diárias", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
-                GoalRow("PASSOS", stepsGoalText, "",   6, KeyboardType.Number, c, { stepsGoalText = it; settingsSaved = false })
-                GoalRow("Água",   waterGoalText, "ml", 5, KeyboardType.Number, c, { waterGoalText = it; settingsSaved = false })
+                GoalRow("Passos", stepsGoalText, "",   6, KeyboardType.Number, c) { stepsGoalText = it; settingsSaved = false }
+                GoalRow("Água",   waterGoalText, "ml", 5, KeyboardType.Number, c) { waterGoalText = it; settingsSaved = false }
             }
         }
 
-        // Notificações
+        // ── Notificações ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Notificações", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
                 Spacer(Modifier.height(8.dp))
-                NotifRowWithFreq("💧 Água", "Lembrar para beber água", notifWaterState, waterFreq, c,
-                    { notifWaterState = it; settingsSaved = false }, { waterFreq = it; settingsSaved = false })
-                HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
+
                 NotifRowSteps(notifStepsState, c) { notifStepsState = it; settingsSaved = false }
+
                 HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-                NotifRowWithFreq("😊 Humor", "Lembrar para registar emoção", notifMoodState, moodFreq, c,
-                    { notifMoodState = it; settingsSaved = false }, { moodFreq = it; settingsSaved = false })
+
+                NotifRowWithFreq("😊 Humor", "Lembrar para registar emoção",
+                    notifMoodState, moodFreqState, c,
+                    { notifMoodState = it; settingsSaved = false },
+                    { moodFreqState  = it; settingsSaved = false })
+
+                HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
+
+                NotifRowWithFreq("💧 Água", "Lembrar para beber água",
+                    notifWaterState, waterFreqState, c,
+                    { notifWaterState = it; settingsSaved = false },
+                    { waterFreqState  = it; settingsSaved = false })
             }
         }
 
-        // Exportar relatórios
+        // ── Exportar ──
         ReportsCard()
 
-        // Guardar
+        // ── Guardar ──
         Button(
             onClick = {
                 if (notifWaterState) scheduleRepeatingNotification(context, "water",
-                    NOTIF_FREQUENCIES[waterFreq] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
+                    NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
                 else cancelRepeatingNotification(context, "water", 100)
+
                 if (notifMoodState) scheduleRepeatingNotification(context, "mood",
-                    NOTIF_FREQUENCIES[moodFreq] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
+                    NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
                 else cancelRepeatingNotification(context, "mood", 101)
+
                 val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                 val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState)
+                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState,
+                    waterFreqState, moodFreqState, googleState)
                 settingsSaved = true
             },
             modifier = Modifier.fillMaxWidth().height(44.dp),
@@ -240,7 +259,8 @@ fun SettingScreenContent(
 
         if (settingsSaved) {
             Text("✓ Definições guardadas!", color = c.primary, fontSize = 14.sp,
-                fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.CenterHorizontally))
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.align(Alignment.CenterHorizontally))
         }
 
         Spacer(Modifier.height(8.dp))
@@ -248,12 +268,13 @@ fun SettingScreenContent(
 }
 
 // ─────────────────────────────────────────────
-//  LINHA CAMPOS DE META
+//  LINHA DE META
 // ─────────────────────────────────────────────
 @Composable
 private fun GoalRow(
     label: String, value: String, suffix: String, maxLen: Int,
-    keyboard: KeyboardType, c: com.example.healthtracker.ui.theme.AppColors, onChange: (String) -> Unit
+    keyboard: KeyboardType, c: com.example.healthtracker.ui.theme.AppColors,
+    onChange: (String) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -299,10 +320,8 @@ private fun NotifRowWithFreq(
                 checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
         Box {
             OutlinedButton(
-                onClick = { if (checked) dropdownExpanded = true },
-                enabled = checked,
-                modifier = Modifier.height(40.dp).width(72.dp),
-                shape = RoundedCornerShape(8.dp),
+                onClick = { if (checked) dropdownExpanded = true }, enabled = checked,
+                modifier = Modifier.height(40.dp).width(72.dp), shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, if (checked) c.primary.copy(alpha = 0.5f) else c.inputBorder),
                 contentPadding = PaddingValues(horizontal = 6.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = if (checked) c.primary else c.textSecondary)
@@ -328,9 +347,7 @@ private fun NotifRowWithFreq(
 // ─────────────────────────────────────────────
 @Composable
 private fun NotifRowSteps(
-    checked: Boolean,
-    c: com.example.healthtracker.ui.theme.AppColors,
-    onToggle: (Boolean) -> Unit
+    checked: Boolean, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,

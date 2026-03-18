@@ -1,12 +1,10 @@
 package com.example.healthtracker.services.user
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.healthtracker.data.UserPreferences
 import com.example.healthtracker.data.UserRepository
-import com.example.healthtracker.services.notifications.NotificationScheduler
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -35,8 +33,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val todayEmotion  get() = prefs.value.todayEmotion
     val todayCalories get() = prefs.value.todayCalories
 
-
-
     // ──────────────────────────────────────────
     //  PERFIL
     // ──────────────────────────────────────────
@@ -49,23 +45,23 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     // ──────────────────────────────────────────
     fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
-        notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean
+        notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
+        waterFreq: String = prefs.value.waterFreq,
+        moodFreq: String  = prefs.value.moodFreq,
+        darkMode: Boolean = prefs.value.darkMode,
+        googleLinked: Boolean = prefs.value.googleLinked
     ) {
         viewModelScope.launch {
-            repo.saveSettings(stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood)
+            repo.saveSettings(
+                stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood,
+                waterFreq, moodFreq, darkMode, googleLinked
+            )
         }
     }
 
-    // ──────────────────────────────────────────
-    //  Notificações
-    // ──────────────────────────────────────────
-    fun updateWaterNotification(context: Context, enabled: Boolean, frequencyKey: String) {
-        if (enabled) {
-            val minutes = NotificationScheduler.FREQUENCIES[frequencyKey] ?: 60L
-            NotificationScheduler.scheduleWaterReminder(context, minutes)
-        } else {
-            NotificationScheduler.cancelWaterReminder(context)
-        }
+    // ── Guarda só o dark mode (chamado pelo toggle) ──
+    fun saveDarkMode(enabled: Boolean) {
+        viewModelScope.launch { repo.saveDarkMode(enabled) }
     }
 
     // ──────────────────────────────────────────
