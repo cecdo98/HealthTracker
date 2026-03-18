@@ -1,10 +1,12 @@
 package com.example.healthtracker.services.user
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.healthtracker.data.UserPreferences
 import com.example.healthtracker.data.UserRepository
+import com.example.healthtracker.services.notifications.NotificationScheduler
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -51,6 +53,18 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             repo.saveSettings(stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood)
+        }
+    }
+
+    // ──────────────────────────────────────────
+    //  Notificações
+    // ──────────────────────────────────────────
+    fun updateWaterNotification(context: Context, enabled: Boolean, frequencyKey: String) {
+        if (enabled) {
+            val minutes = NotificationScheduler.FREQUENCIES[frequencyKey] ?: 60L
+            NotificationScheduler.scheduleWaterReminder(context, minutes)
+        } else {
+            NotificationScheduler.cancelWaterReminder(context)
         }
     }
 

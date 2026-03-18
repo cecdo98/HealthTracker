@@ -18,17 +18,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthtracker.services.user.UserViewModel
+import com.example.healthtracker.ui.theme.AppTheme
+import com.example.healthtracker.ui.theme.DarkColors
+import com.example.healthtracker.ui.theme.LightColors
+import com.example.healthtracker.ui.theme.LocalAppColors
 
 // ─────────────────────────────────────────────
-//  WRAPPER — lê o ViewModel e passa para o Content
+//  WRAPPER
 // ─────────────────────────────────────────────
 @Composable
-fun ProfileScreen(
-    modifier: Modifier = Modifier,
-    viewModel: UserViewModel = viewModel()
-) {
+fun ProfileScreen(modifier: Modifier = Modifier, viewModel: UserViewModel = viewModel()) {
     val prefs by viewModel.prefs.collectAsState()
-
     ProfileScreenContent(
         modifier  = modifier,
         firstName = prefs.firstName,
@@ -40,7 +40,7 @@ fun ProfileScreen(
 }
 
 // ─────────────────────────────────────────────
-//  CONTENT — composable puro, sem ViewModel
+//  CONTENT
 // ─────────────────────────────────────────────
 @Composable
 fun ProfileScreenContent(
@@ -51,6 +51,8 @@ fun ProfileScreenContent(
     age: String = "",
     onSave: (String, String, String, String) -> Unit = { _, _, _, _ -> }
 ) {
+    val c = AppTheme.colors
+
     var firstNameField by remember(firstName) { mutableStateOf(firstName) }
     var lastNameField  by remember(lastName)  { mutableStateOf(lastName)  }
     var weightField    by remember(weight)    { mutableStateOf(weight)    }
@@ -60,142 +62,96 @@ fun ProfileScreenContent(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(c.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ProfileHeader()
+        // Cabeçalho
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center) {
+            Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+        }
 
         // Avatar
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), PrimaryBlue))),
+                    .size(100.dp).clip(CircleShape)
+                    .background(Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), c.primary))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person, contentDescription = null,
-                    tint = Color.White, modifier = Modifier.size(60.dp)
-                )
+                Icon(Icons.Default.Person, contentDescription = null,
+                    tint = Color.White, modifier = Modifier.size(60.dp))
             }
             Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF718096))
-                    .border(2.dp, Color.White, CircleShape),
+                modifier = Modifier.size(28.dp).clip(CircleShape)
+                    .background(Color(0xFF718096)).border(2.dp, c.card, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add, contentDescription = "Alterar foto",
-                    tint = Color.White, modifier = Modifier.size(16.dp)
-                )
+                Icon(Icons.Default.Add, contentDescription = "Alterar foto",
+                    tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
 
         Spacer(Modifier.height(32.dp))
 
-        ProfileTextField(
-            label         = "PRIMEIRO NOME",
-            value         = firstNameField,
-            onValueChange = { firstNameField = it; saved = false }
-        )
+        ProfileTextField("PRIMEIRO NOME", firstNameField, c, { firstNameField = it; saved = false })
         Spacer(Modifier.height(12.dp))
-        ProfileTextField(
-            label         = "ÚLTIMO NOME",
-            value         = lastNameField,
-            onValueChange = { lastNameField = it; saved = false }
-        )
+        ProfileTextField("ÚLTIMO NOME", lastNameField, c, { lastNameField = it; saved = false })
         Spacer(Modifier.height(12.dp))
-        ProfileTextField(
-            label         = "PESO",
-            value         = weightField,
-            onValueChange = { weightField = it; saved = false },
-            keyboardType  = KeyboardType.Number,
-            suffix        = "kg"
-        )
+        ProfileTextField("PESO", weightField, c, { weightField = it; saved = false },
+            keyboardType = KeyboardType.Number, suffix = "kg")
         Spacer(Modifier.height(12.dp))
-        ProfileTextField(
-            label         = "IDADE",
-            value         = ageField,
-            onValueChange = { ageField = it; saved = false },
-            keyboardType  = KeyboardType.Number
-        )
+        ProfileTextField("IDADE", ageField, c, { ageField = it; saved = false },
+            keyboardType = KeyboardType.Number)
 
         Spacer(Modifier.height(28.dp))
 
         Button(
-            onClick = {
-                onSave(firstNameField, lastNameField, weightField, ageField)
-                saved = true
-            },
+            onClick = { onSave(firstNameField, lastNameField, weightField, ageField); saved = true },
             modifier = Modifier.fillMaxWidth(0.5f).height(44.dp),
             shape    = RoundedCornerShape(8.dp),
-            colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF6AB0F5))
+            colors   = ButtonDefaults.buttonColors(containerColor = c.primary)
         ) {
-            Text("Gravar", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text("Gravar", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
 
         if (saved) {
             Spacer(Modifier.height(12.dp))
-            Text(
-                text       = "✓ Perfil guardado!",
-                color      = Color(0xFF54A3F3),
-                fontSize   = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text("✓ Perfil guardado!", color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 // ─────────────────────────────────────────────
-//  CABEÇALHO
-// ─────────────────────────────────────────────
-@Composable
-fun ProfileHeader() {
-    Row(
-        modifier              = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment     = Alignment.CenterVertically
-    ) {
-        Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-    }
-}
-
-// ─────────────────────────────────────────────
-//  CAMPO DE TEXTO REUTILIZÁVEL
+//  CAMPO DE TEXTO
 // ─────────────────────────────────────────────
 @Composable
 fun ProfileTextField(
     label: String,
     value: String,
+    c: com.example.healthtracker.ui.theme.AppColors,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
     suffix: String = ""
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text          = label,
-            fontSize      = 11.sp,
-            fontWeight    = FontWeight.SemiBold,
-            color         = TextLight,
-            letterSpacing = 0.8.sp
-        )
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+            color = c.textSecondary, letterSpacing = 0.8.sp)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
-            value           = value,
-            onValueChange   = onValueChange,
-            modifier        = Modifier.fillMaxWidth(),
-            singleLine      = true,
-            suffix          = if (suffix.isNotEmpty()) {{ Text(suffix, color = TextLight) }} else null,
+            value = value, onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary) }} else null,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = PrimaryBlue,
-                unfocusedBorderColor    = Color(0xFFCBD5E0),
-                focusedContainerColor   = CardColor,
-                unfocusedContainerColor = CardColor
+                focusedBorderColor      = c.inputBorderFocused,
+                unfocusedBorderColor    = c.inputBorder,
+                focusedContainerColor   = c.card,
+                unfocusedContainerColor = c.card,
+                focusedTextColor        = c.textPrimary,
+                unfocusedTextColor      = c.textPrimary
             ),
             shape = RoundedCornerShape(8.dp)
         )
@@ -203,20 +159,34 @@ fun ProfileTextField(
 }
 
 // ─────────────────────────────────────────────
-//  PREVIEW
+//  PREVIEWS
 // ─────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun ProfileScreenPreview() {
-    MaterialTheme {
-        Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
-            ProfileScreenContent(
-                modifier  = Modifier.padding(padding),
-                firstName = "João",
-                lastName  = "Silva",
-                weight    = "75",
-                age       = "28"
-            )
+fun ProfileScreenLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
+                ProfileScreenContent(modifier = Modifier.padding(padding),
+                    firstName = "João", lastName = "Silva", weight = "75", age = "28")
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ProfileScreenDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
+                ProfileScreenContent(modifier = Modifier.padding(padding),
+                    firstName = "João",
+                    lastName = "Silva",
+                    weight = "75",
+                    age = "28"
+                )
+            }
         }
     }
 }
