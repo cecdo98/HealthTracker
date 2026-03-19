@@ -120,7 +120,8 @@ fun HealthTrackerScreen(
                             todayWaterMl = prefs.todayWaterMl,
                             waterGoalMl = prefs.waterGoalMl,
                             onEmotionSelected = { userViewModel.setEmotion(it) },
-                            onAddWater = { userViewModel.addWater(it) }
+                            onAddWater = { userViewModel.addWater(it) },
+                            isExpanded = useNavRail
                         )
                     }
                 }
@@ -204,7 +205,8 @@ fun HomeScreenContent(
     todayWaterMl: Int = 0,
     waterGoalMl: Int = 2500,
     onEmotionSelected: (Int) -> Unit = {},
-    onAddWater: (Int) -> Unit = {}
+    onAddWater: (Int) -> Unit = {},
+    isExpanded: Boolean = false
 ) {
     val c = AppTheme.colors
     Column(
@@ -216,7 +218,7 @@ fun HomeScreenContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         HeaderSection(firstName = firstName, lastName = lastName)
-        StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal)
+        StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
         EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
         WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
     }
@@ -260,7 +262,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "") {
 //  STEPS CARD
 // ─────────────────────────────────────────────
 @Composable
-fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000) {
+fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean = false) {
     val c = AppTheme.colors
     val progress   = if (stepsGoal > 0) stepsCurrent.toFloat() / stepsGoal.toFloat() else 0f
     val distanceKm = stepsCurrent * 0.00078f
@@ -274,14 +276,22 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Passos", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (isExpanded) Arrangement.SpaceBetween else Arrangement.Start
+            ) {
                 Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
                     CircularProgressRing(progress = progress, trackColor = c.primary.copy(alpha = 0.15f),
                         activeColor = c.primary, size = 72.dp, strokeWidth = 8.dp)
                     Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = c.primary, modifier = Modifier.size(32.dp))
                 }
-                Spacer(Modifier.width(16.dp))
-                Column {
+                
+                if (!isExpanded) {
+                    Spacer(Modifier.width(16.dp))
+                }
+                
+                Column(horizontalAlignment = if (isExpanded) Alignment.End else Alignment.Start) {
                     Text("Passos ${"%,d".format(stepsCurrent)} / ${"%,d".format(stepsGoal)}",
                         fontSize = 14.sp, color = c.textPrimary, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
@@ -463,7 +473,8 @@ fun HomeScreenTabletPreview() {
                     ) { padding ->
                         HomeScreenContent(modifier = Modifier.padding(padding),
                             firstName = "João", lastName = "Silva",
-                            todaySteps = 7500, stepsGoal = 10000)
+                            todaySteps = 7500, stepsGoal = 10000,
+                            isExpanded = true)
                     }
                 }
             }
@@ -485,7 +496,8 @@ fun HomeScreenTabletDarkPreview() {
                     ) { padding ->
                         HomeScreenContent(modifier = Modifier.padding(padding),
                             firstName = "João", lastName = "Silva",
-                            todaySteps = 7500, stepsGoal = 10000)
+                            todaySteps = 7500, stepsGoal = 10000,
+                            isExpanded = true)
                     }
                 }
             }
