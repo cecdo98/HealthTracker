@@ -63,15 +63,11 @@ class StepForegroundService : Service(), SensorEventListener {
     // ── Carrega os passos já guardados no DataStore ──
     private fun loadSavedSteps() {
         serviceScope.launch {
-            val today      = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val today = repo.checkAndResetIfNewDay()
             val savedPrefs = repo.preferences.first()
 
-            savedStepsToday = if (savedPrefs.todayDate == today) {
-                savedPrefs.todaySteps
-            } else {
-                repo.resetDailyData(today)
-                0
-            }
+            savedStepsToday = savedPrefs.todaySteps
+            updateNotification(savedStepsToday)
         }
     }
 
@@ -88,41 +84,25 @@ class StepForegroundService : Service(), SensorEventListener {
         event ?: return
         val totalSinceReboot = event.values[0].toInt()
 
-        if (stepsAtStart == -1) {
-            stepsAtStart = totalSinceReboot - savedStepsToday
-        }
-
-        val todaySteps = (totalSinceReboot - stepsAtStart).coerceAtLeast(0)
-        updateNotification(todaySteps)
-
         serviceScope.launch {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val today = repo.checkAndResetIfNewDay()
             val prefs = repo.preferences.first()
 
-            if (prefs.todayDate != today) {
-                // ── Novo dia ──
-                repo.resetDailyData(today)   // reseta água, emoção, calorias
-                stepsAtStart = totalSinceReboot  // ← reinicia a base do sensor para 0 passos
-                savedStepsToday = 0
-
-                // Guarda 0 passos no novo dia
-                repo.saveDailyData(
-                    date     = today,
-                    steps    = 0,
-                    waterMl  = 0,
-                    calories = 0,
-                    emotion  = 2
-                )
-            } else {
-                // ── Mesmo dia — guarda normalmente ──
-                repo.saveDailyData(
-                    date     = today,
-                    steps    = todaySteps,
-                    waterMl  = prefs.todayWaterMl,
-                    calories = (todaySteps * 0.04f).toInt(),
-                    emotion  = prefs.todayEmotion
-                )
+            if (stepsAtStart == -1 || prefs.todaySteps == 0) {
+                // Se o dia resetou, recalculamos a base
+                stepsAtStart = totalSinceReboot - prefs.todaySteps
             }
+
+            val todaySteps = (totalSinceReboot - stepsAtStart).coerceAtLeast(0)
+            updateNotification(todaySteps)
+
+            repo.saveDailyData(
+                date     = today,
+                steps    = todaySteps,
+                waterMl  = prefs.todayWaterMl,
+                calories = (todaySteps * 0.04f).toInt(),
+                emotion  = prefs.todayEmotion
+            )
         }
     }
 
@@ -143,7 +123,7 @@ class StepForegroundService : Service(), SensorEventListener {
             .setContentText("Passos hoje: $steps")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
-            .setOngoing(false)       // não pode ser dispensada pelo utilizador
+            .setOngoing(true)       // não pode ser dispensada pelo utilizador
             .setSilent(true)        // sem som
             .build()
     }

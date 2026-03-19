@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.core.app.NotificationCompat
@@ -84,7 +85,7 @@ fun cancelRepeatingNotification(context: Context, type: String, requestCode: Int
 }
 
 // ─────────────────────────────────────────────
-//  WRAPPER — lê ViewModel e passa para o Content
+//  WRAPPER
 // ─────────────────────────────────────────────
 @Composable
 fun SettingScreen(
@@ -114,7 +115,7 @@ fun SettingScreen(
 }
 
 // ─────────────────────────────────────────────
-//  CONTENT — composable puro
+//  CONTENT
 // ─────────────────────────────────────────────
 @Composable
 fun SettingScreenContent(
@@ -152,7 +153,6 @@ fun SettingScreenContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Cabeçalho
         Row(modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
@@ -160,7 +160,6 @@ fun SettingScreenContent(
             Text("Definições", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
 
-        // ── Modo escuro ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -184,7 +183,6 @@ fun SettingScreenContent(
             }
         }
 
-        // ── Google account ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -202,17 +200,8 @@ fun SettingScreenContent(
                         tint = Color.Unspecified
                     )
                     Column {
-                        Text(
-                            "Ligar conta google",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = c.textPrimary
-                        )
-                        Text(
-                            if (googleState) "Ativado" else "Desativado",
-                            fontSize = 12.sp,
-                            color = c.textSecondary
-                        )
+                        Text("Ligar conta google", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
+                        Text(if (googleState) "Ativado" else "Desativado", fontSize = 12.sp, color = c.textSecondary)
                     }
                 }
                 Switch(checked = googleState, onCheckedChange = { googleState = it; settingsSaved = false },
@@ -221,7 +210,6 @@ fun SettingScreenContent(
             }
         }
 
-        // ── Metas diárias ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -232,201 +220,126 @@ fun SettingScreenContent(
             }
         }
 
-        // ── Notificações ──
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Notificações", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
                 Spacer(Modifier.height(8.dp))
-
                 NotifRowSteps(notifStepsState, c) { notifStepsState = it; settingsSaved = false }
-
                 HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-
-                NotifRowWithFreq("😊 Humor", "Lembrar para registar emoção",
-                    notifMoodState, moodFreqState, c,
-                    { notifMoodState = it; settingsSaved = false },
-                    { moodFreqState  = it; settingsSaved = false })
-
+                NotifRowWithFreq("😊 Humor", "Lembrar para registar emoção", notifMoodState, moodFreqState, c, { notifMoodState = it; settingsSaved = false }, { moodFreqState = it; settingsSaved = false })
                 HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-
-                NotifRowWithFreq("💧 Água", "Lembrar para beber água",
-                    notifWaterState, waterFreqState, c,
-                    { notifWaterState = it; settingsSaved = false },
-                    { waterFreqState  = it; settingsSaved = false })
+                NotifRowWithFreq("💧 Água", "Lembrar para beber água", notifWaterState, waterFreqState, c, { notifWaterState = it; settingsSaved = false }, { waterFreqState = it; settingsSaved = false })
             }
         }
 
-        // ── Exportar ──
         ReportsCard()
 
-        // ── Guardar ──
         Button(
             onClick = {
-                if (notifWaterState) scheduleRepeatingNotification(context, "water",
-                    NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
+                if (notifWaterState) scheduleRepeatingNotification(context, "water", NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
                 else cancelRepeatingNotification(context, "water", 100)
-
-                if (notifMoodState) scheduleRepeatingNotification(context, "mood",
-                    NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
+                if (notifMoodState) scheduleRepeatingNotification(context, "mood", NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
                 else cancelRepeatingNotification(context, "mood", 101)
-
                 val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                 val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState,
-                    waterFreqState, moodFreqState, googleState)
+                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState, waterFreqState, moodFreqState, googleState)
                 settingsSaved = true
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            shape    = RoundedCornerShape(8.dp),
-            colors   = ButtonDefaults.buttonColors(containerColor = c.primary)
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape    = RoundedCornerShape(12.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = c.primary),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
         ) {
-            Text("Guardar definições", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text("Guardar definições", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
         if (settingsSaved) {
-            Text("✓ Definições guardadas!", color = c.primary, fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.align(Alignment.CenterHorizontally))
+            Text("✓ Definições guardadas!", color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
-
         Spacer(Modifier.height(8.dp))
     }
 }
 
-// ─────────────────────────────────────────────
-//  LINHA DE META
-// ─────────────────────────────────────────────
 @Composable
-private fun GoalRow(
-    label: String, value: String, suffix: String, maxLen: Int,
-    keyboard: KeyboardType, c: com.example.healthtracker.ui.theme.AppColors,
-    onChange: (String) -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-            color = c.textSecondary, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp))
+private fun GoalRow(label: String, value: String, suffix: String, maxLen: Int, keyboard: KeyboardType, c: com.example.healthtracker.ui.theme.AppColors, onChange: (String) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = c.textSecondary, letterSpacing = 0.8.sp, modifier = Modifier.width(52.dp))
         OutlinedTextField(
             value = value, onValueChange = { if (it.length <= maxLen) onChange(it) },
             modifier = Modifier.weight(1f), singleLine = true,
             suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary, fontSize = 12.sp) }} else null,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = c.inputBorderFocused, unfocusedBorderColor = c.inputBorder,
-                focusedContainerColor = c.card, unfocusedContainerColor = c.card,
-                focusedTextColor = c.textPrimary, unfocusedTextColor = c.textPrimary
-            ),
+            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = c.inputBorderFocused, unfocusedBorderColor = c.inputBorder, focusedContainerColor = c.card, unfocusedContainerColor = c.card, focusedTextColor = c.textPrimary, unfocusedTextColor = c.textPrimary),
             shape = RoundedCornerShape(8.dp),
             textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
         )
     }
 }
 
-// ─────────────────────────────────────────────
-//  LINHA NOTIFICAÇÃO COM FREQUÊNCIA
-// ─────────────────────────────────────────────
 @Composable
-private fun NotifRowWithFreq(
-    label: String, description: String, checked: Boolean, selectedFreq: String,
-    c: com.example.healthtracker.ui.theme.AppColors,
-    onToggle: (Boolean) -> Unit, onFreqChange: (String) -> Unit
-) {
+private fun NotifRowWithFreq(label: String, description: String, checked: Boolean, selectedFreq: String, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit, onFreqChange: (String) -> Unit) {
     var dropdownExpanded by remember { mutableStateOf(false) }
     val freqOptions = NOTIF_FREQUENCIES.keys.toList()
-
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(modifier = Modifier.weight(1f)) {
             Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
             Text(description, fontSize = 11.sp, color = c.textSecondary)
         }
-        Switch(checked = checked, onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White,
-                checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
+        Switch(checked = checked, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
         Box {
             OutlinedButton(
                 onClick = { if (checked) dropdownExpanded = true }, enabled = checked,
-                modifier = Modifier
-                    .height(40.dp)
-                    .width(72.dp), shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(40.dp).width(72.dp), shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, if (checked) c.primary.copy(alpha = 0.5f) else c.inputBorder),
                 contentPadding = PaddingValues(horizontal = 6.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (checked) c.primary else c.textSecondary)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = if (checked) c.primary else c.textSecondary),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
             ) {
                 Text(selectedFreq, fontSize = 12.sp)
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(14.dp))
             }
-            DropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false },
-                containerColor = c.card) {
+            DropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }, containerColor = c.card) {
                 freqOptions.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, fontSize = 13.sp, color = c.textPrimary) },
-                        onClick = { onFreqChange(option); dropdownExpanded = false }
-                    )
+                    DropdownMenuItem(text = { Text(option, fontSize = 13.sp, color = c.textPrimary) }, onClick = { onFreqChange(option); dropdownExpanded = false })
                 }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────
-//  LINHA PASSOS
-// ─────────────────────────────────────────────
 @Composable
-private fun NotifRowSteps(
-    checked: Boolean, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit
-) {
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween) {
+private fun NotifRowSteps(checked: Boolean, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Column(modifier = Modifier.weight(1f)) {
             Text("🚶 Passos", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
-            Text(if (checked) "Contador visível na barra de notificações"
-            else         "Ativa para ver passos na barra de notificações",
-                fontSize = 11.sp, color = c.textSecondary)
+            Text(if (checked) "Contador visível na barra de notificações" else "Ativa para ver passos na barra de notificações", fontSize = 11.sp, color = c.textSecondary)
         }
-        Switch(checked = checked, onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White,
-                checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
+        Switch(checked = checked, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
     }
 }
 
-// ─────────────────────────────────────────────
-//  CARD EXPORTAR RELATÓRIOS
-// ─────────────────────────────────────────────
 @Composable
 fun ReportsCard() {
     val c = AppTheme.colors
-    val exportItems = listOf(
-        Triple(Icons.Default.DirectionsWalk,     Color(0xFF4A90E2), "Passos"),
-        Triple(Icons.Default.SentimentSatisfied, Color(0xFFFFB347), "Humor"),
-        Triple(Icons.Default.WaterDrop,          Color(0xFF5BC8F5), "Água")
-    )
-    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
+    val exportItems = listOf(Triple(Icons.Default.DirectionsWalk, Color(0xFF4A90E2), "Passos"), Triple(Icons.Default.SentimentSatisfied, Color(0xFFFFB347), "Humor"), Triple(Icons.Default.WaterDrop, Color(0xFF5BC8F5), "Água"))
+    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Exportar relatórios", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 exportItems.forEach { (icon, tint, label) ->
-                    OutlinedButton(onClick = { }, modifier = Modifier
-                        .weight(1f)
-                        .height(68.dp),
+                    OutlinedButton(
+                        onClick = { },
+                        modifier = Modifier.weight(1f).height(68.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, c.inputBorder), contentPadding = PaddingValues(4.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = c.textPrimary)) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center) {
+                        border = BorderStroke(1.dp, c.inputBorder),
+                        contentPadding = PaddingValues(4.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = c.textPrimary),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
                             Spacer(Modifier.height(4.dp))
                             Text("Exportar", fontSize = 11.sp, color = c.textSecondary)
@@ -435,11 +348,13 @@ fun ReportsCard() {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Button(onClick = { }, modifier = Modifier
-                .fillMaxWidth()
-                .height(40.dp),
+            Button(
+                onClick = { },
+                modifier = Modifier.fillMaxWidth().height(40.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = c.primary)) {
+                colors = ButtonDefaults.buttonColors(containerColor = c.primary),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
+            ) {
                 Text("Exportar todos", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
@@ -455,11 +370,7 @@ fun SettingScreenLightPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(
-                    modifier = Modifier.padding(padding),
-                    isDarkMode = false,
-                    googleLinked = false
-                )
+                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false, googleLinked = false)
             }
         }
     }
@@ -471,11 +382,41 @@ fun SettingScreenDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(
-                    modifier = Modifier.padding(padding),
-                    isDarkMode = true,
-                    googleLinked = true
-                )
+                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true, googleLinked = true)
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun SettingScreenTabletLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            Row(modifier = Modifier.fillMaxSize().background(LightColors.background)) {
+                NavRail(selectedTab = 2) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = LightColors.background) { padding ->
+                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false, googleLinked = false)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun SettingScreenTabletDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            Row(modifier = Modifier.fillMaxSize().background(DarkColors.background)) {
+                NavRail(selectedTab = 2) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = DarkColors.background) { padding ->
+                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true, googleLinked = true)
+                    }
+                }
             }
         }
     }

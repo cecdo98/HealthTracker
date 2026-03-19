@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.geometry.Offset
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,82 +37,168 @@ import java.util.Date
 import java.util.Locale
 
 // ─────────────────────────────────────────────
-//  CORES — atalhos para compatibilidade
-// ─────────────────────────────────────────────
-val BackgroundColor   = LightColors.background
-val CardColor         = LightColors.card
-val PrimaryBlue       = LightColors.primary
-val TextDark          = LightColors.textPrimary
-val TextLight         = LightColors.textSecondary
-val BottomBarSelected = LightColors.navSelected
-val BottomBarUnsel    = LightColors.navUnselected
-
-// ─────────────────────────────────────────────
 //  ENTRY POINT
 // ─────────────────────────────────────────────
 @Composable
-fun HealthTrackerApp(userViewModel: UserViewModel = viewModel()) {
+fun HealthTrackerApp(
+    userViewModel: UserViewModel = viewModel(),
+    windowSizeClass: WindowSizeClass? = null
+) {
     val prefs by userViewModel.prefs.collectAsState()
 
-    // ← lido do DataStore, persiste entre sessões
     val isDarkMode = prefs.darkMode
-    val colors     = if (isDarkMode) DarkColors else LightColors
+    val colors = if (isDarkMode) DarkColors else LightColors
 
     CompositionLocalProvider(LocalAppColors provides colors) {
         MaterialTheme(
             colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
         ) {
             HealthTrackerScreen(
-                userViewModel    = userViewModel,
-                isDarkMode       = isDarkMode,
-                onDarkModeToggle = { userViewModel.saveDarkMode(it) }  // ← guarda no DataStore
+                userViewModel = userViewModel,
+                isDarkMode = isDarkMode,
+                onDarkModeToggle = { userViewModel.saveDarkMode(it) },
+                windowSizeClass = windowSizeClass
             )
         }
     }
 }
 
 // ─────────────────────────────────────────────
-//  ECRÃ PRINCIPAL
+//  ECRÃ PRINCIPAL (Adaptativo e Ajustado)
 // ─────────────────────────────────────────────
 @Composable
 fun HealthTrackerScreen(
     userViewModel: UserViewModel = viewModel(),
     isDarkMode: Boolean = false,
-    onDarkModeToggle: (Boolean) -> Unit = {}
+    onDarkModeToggle: (Boolean) -> Unit = {},
+    windowSizeClass: WindowSizeClass? = null
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val prefs by userViewModel.prefs.collectAsState()
+    
+    val useNavRail = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
-    Scaffold(
-        containerColor = AppTheme.colors.background,
-        bottomBar = { BottomNavBar(selectedTab) { selectedTab = it } }
-    ) { padding ->
-        when (selectedTab) {
-            1 -> ProfileScreen(modifier = Modifier.padding(padding), viewModel = userViewModel)
-            2 -> SettingScreen(
-                modifier         = Modifier.padding(padding),
-                viewModel        = userViewModel,
-                isDarkMode       = isDarkMode,
-                onDarkModeToggle = onDarkModeToggle
+    Row(modifier = Modifier.fillMaxSize()) {
+        if (useNavRail) {
+            NavRail(selectedTab) { selectedTab = it }
+        }
+        
+        Scaffold(
+            containerColor = AppTheme.colors.background,
+            bottomBar = {
+                if (!useNavRail) {
+                    BottomNavBar(selectedTab) { selectedTab = it }
+                }
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                val contentModifier = if (useNavRail) {
+                    Modifier.widthIn(max = 800.dp).fillMaxHeight()
+                } else {
+                    Modifier.fillMaxSize()
+                }
+
+                Box(modifier = contentModifier) {
+                    when (selectedTab) {
+                        1 -> ProfileScreen(viewModel = userViewModel)
+                        2 -> SettingScreen(
+                            viewModel = userViewModel,
+                            isDarkMode = isDarkMode,
+                            onDarkModeToggle = onDarkModeToggle
+                        )
+                        else -> HomeScreenContent(
+                            firstName = prefs.firstName,
+                            lastName = prefs.lastName,
+                            todaySteps = prefs.todaySteps,
+                            stepsGoal = prefs.stepsGoal,
+                            todayEmotion = prefs.todayEmotion,
+                            todayWaterMl = prefs.todayWaterMl,
+                            waterGoalMl = prefs.waterGoalMl,
+                            onEmotionSelected = { userViewModel.setEmotion(it) },
+                            onAddWater = { userViewModel.addWater(it) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+//  NAVIGATION RAIL
+// ─────────────────────────────────────────────
+@Composable
+fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    val c = AppTheme.colors
+    val items = listOf(
+        Icons.Default.Home to "Início",
+        Icons.Default.Person to "Perfil",
+        Icons.Default.Tune to "Definições"
+    )
+    NavigationRail(
+        containerColor = c.card,
+        header = {
+            Icon(
+                Icons.Default.DirectionsWalk,
+                contentDescription = null,
+                tint = c.primary,
+                modifier = Modifier.padding(vertical = 12.dp).size(32.dp)
             )
-            else -> HomeScreenContent(
-                modifier          = Modifier.padding(padding),
-                firstName         = prefs.firstName,
-                lastName          = prefs.lastName,
-                todaySteps        = prefs.todaySteps,
-                stepsGoal         = prefs.stepsGoal,
-                todayEmotion      = prefs.todayEmotion,
-                todayWaterMl      = prefs.todayWaterMl,
-                waterGoalMl       = prefs.waterGoalMl,
-                onEmotionSelected = { userViewModel.setEmotion(it) },
-                onAddWater        = { userViewModel.addWater(it) }
+        }
+    ) {
+        Spacer(Modifier.weight(1f))
+        items.forEachIndexed { index, (icon, label) ->
+            NavigationRailItem(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                icon = { Icon(icon, contentDescription = label) },
+                label = { Text(label) },
+                colors = NavigationRailItemDefaults.colors(
+                    selectedIconColor = c.navSelected,
+                    unselectedIconColor = c.navUnselected,
+                    selectedTextColor = c.navSelected,
+                    unselectedTextColor = c.navUnselected,
+                    indicatorColor = c.primary.copy(alpha = 0.12f)
+                )
+            )
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+// ─────────────────────────────────────────────
+//  BOTTOM NAV BAR
+// ─────────────────────────────────────────────
+@Composable
+fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    val c = AppTheme.colors
+    val items = listOf(
+        Icons.Default.Home   to "Início",
+        Icons.Default.Person to "Perfil",
+        Icons.Default.Tune   to "Definições"
+    )
+    NavigationBar(containerColor = c.card, tonalElevation = 8.dp) {
+        items.forEachIndexed { index, (icon, label) ->
+            NavigationBarItem(
+                selected = selectedTab == index,
+                onClick  = { onTabSelected(index) },
+                icon = { Icon(imageVector = icon, contentDescription = label,
+                    tint = if (selectedTab == index) c.navSelected else c.navUnselected) },
+                label = { Text(text = label, fontSize = 10.sp,
+                    color = if (selectedTab == index) c.navSelected else c.navUnselected) },
+                colors = NavigationBarItemDefaults.colors(indicatorColor = c.primary.copy(alpha = 0.12f))
             )
         }
     }
 }
 
 // ─────────────────────────────────────────────
-//  ECRÃ HOME
+//  CONTENT HOME
 // ─────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
@@ -141,7 +230,7 @@ fun HomeScreenContent(
 }
 
 // ─────────────────────────────────────────────
-//  CABEÇALHO
+//  HEADER
 // ─────────────────────────────────────────────
 @Composable
 fun HeaderSection(firstName: String = "", lastName: String = "") {
@@ -175,7 +264,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "") {
 }
 
 // ─────────────────────────────────────────────
-//  CARD DE PASSOS
+//  STEPS CARD
 // ─────────────────────────────────────────────
 @Composable
 fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000) {
@@ -212,39 +301,28 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000) {
 }
 
 // ─────────────────────────────────────────────
-//  ANEL CIRCULAR CUSTOM
+//  PROGRESS RING
 // ─────────────────────────────────────────────
 @Composable
-fun CircularProgressRing(
-    progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp
-) {
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress, animationSpec = tween(1000, easing = FastOutSlowInEasing), label = "progress"
-    )
+fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp) {
+    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1000, easing = FastOutSlowInEasing), label = "progress")
     Canvas(modifier = Modifier.size(size)) {
-        val stroke   = strokeWidth.toPx()
+        val stroke = strokeWidth.toPx()
         val diameter = minOf(this.size.width, this.size.height) - stroke
-        val topLeft  = Offset(stroke / 2, stroke / 2)
-        drawArc(color = trackColor, startAngle = -90f, sweepAngle = 360f, useCenter = false,
-            topLeft = topLeft, size = Size(diameter, diameter), style = Stroke(width = stroke, cap = StrokeCap.Round))
-        drawArc(color = activeColor, startAngle = -90f, sweepAngle = 360f * animatedProgress,
-            useCenter = false, topLeft = topLeft, size = Size(diameter, diameter),
-            style = Stroke(width = stroke, cap = StrokeCap.Round))
+        val topLeft = Offset(stroke / 2, stroke / 2)
+        drawArc(color = trackColor, startAngle = -90f, sweepAngle = 360f, useCenter = false, topLeft = topLeft, size = Size(diameter, diameter), style = Stroke(width = stroke, cap = StrokeCap.Round))
+        drawArc(color = activeColor, startAngle = -90f, sweepAngle = 360f * animatedProgress, useCenter = false, topLeft = topLeft, size = Size(diameter, diameter), style = Stroke(width = stroke, cap = StrokeCap.Round))
     }
 }
 
 // ─────────────────────────────────────────────
-//  CARD ESTADO EMOCIONAL
+//  EMOTIONAL CARD
 // ─────────────────────────────────────────────
 @Composable
 fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}) {
     val c = AppTheme.colors
     val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Estado Emocional", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
             Text("Como se sente hoje?", fontSize = 12.sp, color = c.textSecondary)
@@ -252,20 +330,10 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 emotions.forEachIndexed { index, (emoji, label) ->
                     val isSelected = selectedEmotion == index
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent)
-                            .clickable { onEmotionSelected(index) }
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent).clickable { onEmotionSelected(index) }.padding(horizontal = 6.dp, vertical = 6.dp)) {
                         Text(text = emoji, fontSize = 26.sp)
                         Spacer(Modifier.height(2.dp))
-                        Text(text = label, fontSize = 9.sp,
-                            color = if (isSelected) c.primary else c.textSecondary,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = TextAlign.Center)
+                        Text(text = label, fontSize = 9.sp, color = if (isSelected) c.primary else c.textSecondary, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -274,19 +342,14 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
 }
 
 // ─────────────────────────────────────────────
-//  CARD DE ÁGUA
+//  WATER CARD
 // ─────────────────────────────────────────────
 @Composable
 fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}) {
     val c = AppTheme.colors
-    val progress   = if (goalMl > 0) totalMl.toFloat() / goalMl.toFloat() else 0f
+    val progress = if (goalMl > 0) totalMl.toFloat() / goalMl.toFloat() else 0f
     val cupOptions = listOf(200, 250, 300, 350)
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Quantidade de água", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
             Spacer(Modifier.height(12.dp))
@@ -301,9 +364,7 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     cupOptions.chunked(2).forEach { rowItems ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            rowItems.forEach { ml ->
-                                CupButton(ml = ml, modifier = Modifier.weight(1f), onClick = { onAddWater(ml) })
-                            }
+                            rowItems.forEach { ml -> CupButton(ml = ml, modifier = Modifier.weight(1f), onClick = { onAddWater(ml) }) }
                         }
                     }
                 }
@@ -312,34 +373,34 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
     }
 }
 
-// ─────────────────────────────────────────────
-//  BOTÃO DE COPO
-// ─────────────────────────────────────────────
 @Composable
 fun CupButton(ml: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = AppTheme.colors
-    OutlinedButton(
-        onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = c.primary),
-        border = BorderStroke(1.dp, c.primary.copy(alpha = 0.4f)), contentPadding = PaddingValues(4.dp)
+    // Usamos ElevatedButton com Outlined para ter sombra e borda
+    Surface(
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = c.card,
+        tonalElevation = 2.dp,
+        shadowElevation = 3.dp, // Sombra abaixo do botão
+        border = BorderStroke(1.dp, c.primary.copy(alpha = 0.4f)),
+        onClick = onClick
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = Icons.Default.LocalDrink, contentDescription = null,
-                tint = c.primary, modifier = Modifier.size(18.dp))
-            Text(text = "$ml ml", fontSize = 10.sp, color = c.primary)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(4.dp)
+        ) {
+            Icon(imageVector = Icons.Default.LocalDrink, contentDescription = null, tint = c.primary, modifier = Modifier.size(18.dp))
+            Text(text = "$ml ml", fontSize = 10.sp, color = c.primary, fontWeight = FontWeight.Medium)
         }
     }
 }
 
-// ─────────────────────────────────────────────
-//  GARRAFA DE ÁGUA
-// ─────────────────────────────────────────────
 @Composable
 fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
     val c = AppTheme.colors
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress, animationSpec = tween(1200, easing = FastOutSlowInEasing), label = "water"
-    )
+    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1200, easing = FastOutSlowInEasing), label = "water")
     Canvas(modifier = modifier) {
         val w = size.width; val h = size.height
         val bottleTop = h * 0.2f; val bottleLeft = w * 0.25f; val bottleRight = w * 0.75f
@@ -363,32 +424,6 @@ fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
 }
 
 // ─────────────────────────────────────────────
-//  BOTTOM NAV BAR
-// ─────────────────────────────────────────────
-@Composable
-fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    val c = AppTheme.colors
-    val items = listOf(
-        Icons.Default.Home   to "Início",
-        Icons.Default.Person to "Perfil",
-        Icons.Default.Tune   to "Definições"
-    )
-    NavigationBar(containerColor = c.card, tonalElevation = 8.dp) {
-        items.forEachIndexed { index, (icon, label) ->
-            NavigationBarItem(
-                selected = selectedTab == index,
-                onClick  = { onTabSelected(index) },
-                icon = { Icon(imageVector = icon, contentDescription = label,
-                    tint = if (selectedTab == index) c.navSelected else c.navUnselected) },
-                label = { Text(text = label, fontSize = 10.sp,
-                    color = if (selectedTab == index) c.navSelected else c.navUnselected) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = c.primary.copy(alpha = 0.12f))
-            )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
 //  PREVIEWS
 // ─────────────────────────────────────────────
 @Preview(showBackground = true, showSystemUi = true)
@@ -400,8 +435,7 @@ fun HomeScreenLightPreview() {
                 bottomBar = { BottomNavBar(0) {} }) { padding ->
                 HomeScreenContent(modifier = Modifier.padding(padding),
                     firstName = "João", lastName = "Silva",
-                    todaySteps = 7500, stepsGoal = 10000,
-                    todayEmotion = 0, todayWaterMl = 1200, waterGoalMl = 2500)
+                    todaySteps = 7500, stepsGoal = 10000)
             }
         }
     }
@@ -416,8 +450,51 @@ fun HomeScreenDarkPreview() {
                 bottomBar = { BottomNavBar(0) {} }) { padding ->
                 HomeScreenContent(modifier = Modifier.padding(padding),
                     firstName = "João", lastName = "Silva",
-                    todaySteps = 7500, stepsGoal = 10000,
-                    todayEmotion = 0, todayWaterMl = 1200, waterGoalMl = 2500)
+                    todaySteps = 7500, stepsGoal = 10000)
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun HomeScreenTabletPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            Row(modifier = Modifier.fillMaxSize().background(LightColors.background)) {
+                NavRail(0) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(
+                        modifier = Modifier.widthIn(max = 800.dp),
+                        containerColor = LightColors.background
+                    ) { padding ->
+                        HomeScreenContent(modifier = Modifier.padding(padding),
+                            firstName = "João", lastName = "Silva",
+                            todaySteps = 7500, stepsGoal = 10000)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun HomeScreenTabletDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            Row(modifier = Modifier.fillMaxSize().background(DarkColors.background)) {
+                NavRail(0) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(
+                        modifier = Modifier.widthIn(max = 800.dp),
+                        containerColor = DarkColors.background
+                    ) { padding ->
+                        HomeScreenContent(modifier = Modifier.padding(padding),
+                            firstName = "João", lastName = "Silva",
+                            todaySteps = 7500, stepsGoal = 10000)
+                    }
+                }
             }
         }
     }

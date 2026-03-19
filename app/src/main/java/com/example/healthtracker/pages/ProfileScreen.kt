@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -66,16 +67,13 @@ fun ProfileScreenContent(
     var isMetricState  by remember(isMetric)  { mutableStateOf(isMetric)  }
     var saved          by remember { mutableStateOf(false) }
 
-    // Cálculo do IMC (Independente da unidade visível, convertemos para métrico para o cálculo padrão)
     val bmiValue = remember(weightField, heightField, isMetricState) {
         val wRaw = weightField.toFloatOrNull() ?: 0f
         val hRaw = heightField.toFloatOrNull() ?: 0f
-        
         if (isMetricState) {
             val hMetros = hRaw / 100f
             if (hMetros > 0) wRaw / (hMetros * hMetros) else 0f
         } else {
-            // Conversão Imperial: (lbs / inches^2) * 703
             if (hRaw > 0) (wRaw / (hRaw * hRaw)) * 703f else 0f
         }
     }
@@ -96,13 +94,10 @@ fun ProfileScreenContent(
             .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Cabeçalho
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.Center) {
             Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
-
-        // Avatar
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(
                 modifier = Modifier
@@ -110,36 +105,21 @@ fun ProfileScreenContent(
                     .background(Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), c.primary))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, contentDescription = null,
-                    tint = Color.White, modifier = Modifier.size(60.dp))
+                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(60.dp))
             }
             Box(
-                modifier = Modifier.size(28.dp).clip(CircleShape)
-                    .background(Color(0xFF718096)).border(2.dp, c.card, CircleShape),
+                modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF718096)).border(2.dp, c.card, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Alterar foto",
-                    tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Add, contentDescription = "Alterar foto", tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
-
         Spacer(Modifier.height(24.dp))
 
-
-        // Cartão de IMC
         if (bmiValue > 0) {
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
-            ) {
+            ElevatedCard(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), shape = RoundedCornerShape(20.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("Índice de Massa Corporal", fontSize = 13.sp, color = c.textSecondary, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(4.dp))
@@ -148,58 +128,27 @@ fun ProfileScreenContent(
                                 Text(" kg/m²", fontSize = 14.sp, color = c.textSecondary, modifier = Modifier.padding(bottom = 6.dp, start = 4.dp))
                             }
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(if (c.isDark) bmiColor.copy(alpha = 0.2f) else bmiIconColor),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = bmiColor,
-                                modifier = Modifier.size(28.dp)
-                            )
+                        Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(if (c.isDark) bmiColor.copy(alpha = 0.2f) else bmiIconColor), contentAlignment = Alignment.Center) {
+                            Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = bmiColor, modifier = Modifier.size(28.dp))
                         }
                     }
-                    
                     Spacer(Modifier.height(16.dp))
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(CircleShape)
-                            .background(if (c.isDark) Color(0xFF4A5568) else Color(0xFFEDF2F7))
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(if (c.isDark) Color(0xFF4A5568) else Color(0xFFEDF2F7))) {
                         val progress = (bmiValue / 40f).coerceIn(0f, 1f)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .background(bmiColor)
-                        )
+                        Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape).background(bmiColor))
                     }
-                    
                     Spacer(Modifier.height(12.dp))
-                    
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Badge(containerColor = bmiColor, contentColor = Color.White) {
                             Text(bmiCategory.uppercase(), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = when {
+                        Text(text = when {
                                 bmiValue < 18.5 -> "Precisa de ganhar peso de forma saudável."
                                 bmiValue < 25.0 -> "Excelente! Continue assim."
                                 bmiValue < 30.0 -> "Atenção à alimentação e exercício."
                                 else -> "Considere consultar um especialista."
-                            },
-                            fontSize = 11.sp,
-                            color = c.textSecondary
-                        )
+                            }, fontSize = 11.sp, color = c.textSecondary)
                     }
                 }
             }
@@ -209,67 +158,34 @@ fun ProfileScreenContent(
         Spacer(Modifier.height(12.dp))
         ProfileTextField("ÚLTIMO NOME", lastNameField, c, { lastNameField = it; saved = false })
         Spacer(Modifier.height(24.dp))
-
-
-        // Seletor de Unidades
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-            SegmentedButton(
-                selected = isMetricState,
-                onClick = { isMetricState = true; saved = false },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-            ) {
+            SegmentedButton(selected = isMetricState, onClick = { isMetricState = true; saved = false }, shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)) {
                 Text("Métrico (kg, cm)", fontSize = 12.sp)
             }
-            SegmentedButton(
-                selected = !isMetricState,
-                onClick = { isMetricState = false; saved = false },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-            ) {
+            SegmentedButton(selected = !isMetricState, onClick = { isMetricState = false; saved = false }, shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)) {
                 Text("Imperial (lbs, in)", fontSize = 12.sp)
             }
         }
-
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(modifier = Modifier.weight(1f)) {
-                ProfileTextField(
-                    label = if (isMetricState) "PESO (kg)" else "PESO (lbs)",
-                    value = weightField,
-                    c = c,
-                    onValueChange = { weightField = it; saved = false },
-                    keyboardType = KeyboardType.Number,
-                    suffix = if (isMetricState) "kg" else "lbs"
-                )
+                ProfileTextField(label = if (isMetricState) "PESO (kg)" else "PESO (lbs)", value = weightField, c = c, onValueChange = { weightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "kg" else "lbs")
             }
             Box(modifier = Modifier.weight(1f)) {
-                ProfileTextField(
-                    label = if (isMetricState) "ALTURA (cm)" else "ALTURA (in)",
-                    value = heightField,
-                    c = c,
-                    onValueChange = { heightField = it; saved = false },
-                    keyboardType = KeyboardType.Number,
-                    suffix = if (isMetricState) "cm" else "in"
-                )
+                ProfileTextField(label = if (isMetricState) "ALTURA (cm)" else "ALTURA (in)", value = heightField, c = c, onValueChange = { heightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "cm" else "in")
             }
         }
-        
         Spacer(Modifier.height(12.dp))
-        ProfileTextField("IDADE", ageField, c, { ageField = it; saved = false },
-            keyboardType = KeyboardType.Number)
-
+        ProfileTextField("IDADE", ageField, c, { ageField = it; saved = false }, keyboardType = KeyboardType.Number)
         Spacer(Modifier.height(28.dp))
-
         Button(
-            onClick = { 
-                onSave(firstNameField, lastNameField, weightField, heightField, ageField, isMetricState)
-                saved = true 
-            },
-            modifier = Modifier.fillMaxWidth(0.5f).height(44.dp),
-            shape    = RoundedCornerShape(8.dp),
-            colors   = ButtonDefaults.buttonColors(containerColor = c.primary)
+            onClick = { onSave(firstNameField, lastNameField, weightField, heightField, ageField, isMetricState); saved = true },
+            modifier = Modifier.fillMaxWidth(0.5f).height(48.dp),
+            shape    = RoundedCornerShape(12.dp),
+            colors   = ButtonDefaults.buttonColors(containerColor = c.primary),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
         ) {
-            Text("Gravar", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text("Gravar", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
-
         if (saved) {
             Spacer(Modifier.height(12.dp))
             Text("✓ Perfil guardado!", color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -281,33 +197,11 @@ fun ProfileScreenContent(
 //  CAMPO DE TEXTO
 // ─────────────────────────────────────────────
 @Composable
-fun ProfileTextField(
-    label: String,
-    value: String,
-    c: com.example.healthtracker.ui.theme.AppColors,
-    onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    suffix: String = ""
-) {
+fun ProfileTextField(label: String, value: String, c: com.example.healthtracker.ui.theme.AppColors, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text, suffix: String = "") {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-            color = c.textSecondary, letterSpacing = 0.8.sp)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = c.textSecondary, letterSpacing = 0.8.sp)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(
-            value = value, onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(), singleLine = true,
-            suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary) }} else null,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor      = c.inputBorderFocused,
-                unfocusedBorderColor    = c.inputBorder,
-                focusedContainerColor   = c.card,
-                unfocusedContainerColor = c.card,
-                focusedTextColor        = c.textPrimary,
-                unfocusedTextColor      = c.textPrimary
-            ),
-            shape = RoundedCornerShape(8.dp)
-        )
+        OutlinedTextField(value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), singleLine = true, suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary) }} else null, keyboardOptions = KeyboardOptions(keyboardType = keyboardType), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = c.inputBorderFocused, unfocusedBorderColor = c.inputBorder, focusedContainerColor = c.card, unfocusedContainerColor = c.card, focusedTextColor = c.textPrimary, unfocusedTextColor = c.textPrimary), shape = RoundedCornerShape(8.dp))
     }
 }
 
@@ -320,8 +214,7 @@ fun ProfileScreenLightPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
-                ProfileScreenContent(modifier = Modifier.padding(padding),
-                    firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
+                ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
             }
         }
     }
@@ -333,14 +226,41 @@ fun ProfileScreenDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
-                ProfileScreenContent(modifier = Modifier.padding(padding),
-                    firstName = "João",
-                    lastName = "Silva",
-                    weight = "165",
-                    height = "69",
-                    age = "28",
-                    isMetric = false
-                )
+                ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "165", height = "69", age = "28", isMetric = false)
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun ProfileScreenTabletLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            Row(modifier = Modifier.fillMaxSize().background(LightColors.background)) {
+                NavRail(selectedTab = 1) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = LightColors.background) { padding ->
+                        ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun ProfileScreenTabletDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            Row(modifier = Modifier.fillMaxSize().background(DarkColors.background)) {
+                NavRail(selectedTab = 1) {}
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = DarkColors.background) { padding ->
+                        ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
+                    }
+                }
             }
         }
     }
