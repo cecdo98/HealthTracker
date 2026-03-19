@@ -142,14 +142,7 @@ fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     )
     NavigationRail(
         containerColor = c.card,
-        header = {
-            Icon(
-                Icons.Default.DirectionsWalk,
-                contentDescription = null,
-                tint = c.primary,
-                modifier = Modifier.padding(vertical = 12.dp).size(32.dp)
-            )
-        }
+
     ) {
         Spacer(Modifier.weight(1f))
         items.forEachIndexed { index, (icon, label) ->
