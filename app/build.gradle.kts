@@ -71,6 +71,9 @@ dependencies {
     //datastorage
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // Coil para imagens
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // Testes
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

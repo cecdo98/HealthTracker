@@ -337,7 +337,7 @@ fun ReportsCard() {
                         border = BorderStroke(1.dp, c.inputBorder),
                         contentPadding = PaddingValues(4.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = c.textPrimary),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))

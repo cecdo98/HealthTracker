@@ -19,6 +19,9 @@ class UserRepository(context: Context) {
     suspend fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) =
         dataStore.saveProfile(firstName, lastName, weight, height, age, isMetric)
 
+    suspend fun saveProfilePicture(uri: String?) =
+        dataStore.saveProfilePicture(uri)
+
     suspend fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,

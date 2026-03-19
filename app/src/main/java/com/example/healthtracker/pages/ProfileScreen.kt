@@ -1,5 +1,8 @@
 package com.example.healthtracker.pages
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -11,14 +14,17 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
-import androidx.compose.ui.draw.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.text.font.*
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.healthtracker.services.user.UserViewModel
 import com.example.healthtracker.ui.theme.AppTheme
 import com.example.healthtracker.ui.theme.DarkColors
@@ -39,7 +45,9 @@ fun ProfileScreen(modifier: Modifier = Modifier, viewModel: UserViewModel = view
         height    = prefs.height,
         age       = prefs.age,
         isMetric  = prefs.isMetric,
-        onSave    = { fn, ln, w, h, a, m -> viewModel.saveProfile(fn, ln, w, h, a, m) }
+        profilePictureUri = prefs.profilePictureUri,
+        onSave    = { fn, ln, w, h, a, m -> viewModel.saveProfile(fn, ln, w, h, a, m) },
+        onPhotoSelected = { uri -> viewModel.saveProfilePicture(uri?.toString()) }
     )
 }
 
@@ -55,9 +63,12 @@ fun ProfileScreenContent(
     height: String = "",
     age: String = "",
     isMetric: Boolean = true,
-    onSave: (String, String, String, String, String, Boolean) -> Unit = { _, _, _, _, _, _ -> }
+    profilePictureUri: String? = null,
+    onSave: (String, String, String, String, String, Boolean) -> Unit = { _, _, _, _, _, _ -> },
+    onPhotoSelected: (Uri?) -> Unit = {}
 ) {
     val c = AppTheme.colors
+    val context = LocalContext.current
 
     var firstNameField by remember(firstName) { mutableStateOf(firstName) }
     var lastNameField  by remember(lastName)  { mutableStateOf(lastName)  }
@@ -66,6 +77,16 @@ fun ProfileScreenContent(
     var ageField       by remember(age)       { mutableStateOf(age)       }
     var isMetricState  by remember(isMetric)  { mutableStateOf(isMetric)  }
     var saved          by remember { mutableStateOf(false) }
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                onPhotoSelected(it)
+            }
+        }
+    )
 
     val bmiValue = remember(weightField, heightField, isMetricState) {
         val wRaw = weightField.toFloatOrNull() ?: 0f
@@ -98,14 +119,23 @@ fun ProfileScreenContent(
             horizontalArrangement = Arrangement.Center) {
             Text("Perfil", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
-        Box(contentAlignment = Alignment.BottomEnd) {
+        Box(contentAlignment = Alignment.BottomEnd, modifier = Modifier.clickable { photoLauncher.launch(arrayOf("image/*")) }) {
             Box(
                 modifier = Modifier
                     .size(100.dp).clip(CircleShape)
                     .background(Brush.radialGradient(colors = listOf(Color(0xFF6AB0F5), c.primary))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(60.dp))
+                if (profilePictureUri != null) {
+                    AsyncImage(
+                        model = profilePictureUri,
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(60.dp))
+                }
             }
             Box(
                 modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF718096)).border(2.dp, c.card, CircleShape),
@@ -227,40 +257,6 @@ fun ProfileScreenDarkPreview() {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
                 ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "165", height = "69", age = "28", isMetric = false)
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
-@Composable
-fun ProfileScreenTabletLightPreview() {
-    CompositionLocalProvider(LocalAppColors provides LightColors) {
-        MaterialTheme {
-            Row(modifier = Modifier.fillMaxSize().background(LightColors.background)) {
-                NavRail(selectedTab = 1) {}
-                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = LightColors.background) { padding ->
-                        ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
-@Composable
-fun ProfileScreenTabletDarkPreview() {
-    CompositionLocalProvider(LocalAppColors provides DarkColors) {
-        MaterialTheme(colorScheme = darkColorScheme()) {
-            Row(modifier = Modifier.fillMaxSize().background(DarkColors.background)) {
-                NavRail(selectedTab = 1) {}
-                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = DarkColors.background) { padding ->
-                        ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
-                    }
-                }
             }
         }
     }

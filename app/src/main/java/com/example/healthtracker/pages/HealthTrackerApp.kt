@@ -21,12 +21,14 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.draw.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.healthtracker.services.user.UserViewModel
 import com.example.healthtracker.ui.theme.AppTheme
 import com.example.healthtracker.ui.theme.DarkColors
@@ -121,7 +123,8 @@ fun HealthTrackerScreen(
                             waterGoalMl = prefs.waterGoalMl,
                             onEmotionSelected = { userViewModel.setEmotion(it) },
                             onAddWater = { userViewModel.addWater(it) },
-                            isExpanded = useNavRail
+                            isExpanded = useNavRail,
+                            profilePictureUri = prefs.profilePictureUri
                         )
                     }
                 }
@@ -206,7 +209,8 @@ fun HomeScreenContent(
     waterGoalMl: Int = 2500,
     onEmotionSelected: (Int) -> Unit = {},
     onAddWater: (Int) -> Unit = {},
-    isExpanded: Boolean = false
+    isExpanded: Boolean = false,
+    profilePictureUri: String? = null
 ) {
     val c = AppTheme.colors
     Column(
@@ -217,7 +221,7 @@ fun HomeScreenContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        HeaderSection(firstName = firstName, lastName = lastName)
+        HeaderSection(firstName = firstName, lastName = lastName, profilePictureUri = profilePictureUri)
         StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
         EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
         WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
@@ -228,7 +232,7 @@ fun HomeScreenContent(
 //  HEADER
 // ─────────────────────────────────────────────
 @Composable
-fun HeaderSection(firstName: String = "", lastName: String = "") {
+fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureUri: String? = null) {
     val c = AppTheme.colors
     val displayName = when {
         firstName.isBlank() && lastName.isBlank() -> "utilizador"
@@ -253,7 +257,16 @@ fun HeaderSection(firstName: String = "", lastName: String = "") {
                 .background(Brush.linearGradient(colors = listOf(c.primary, Color(0xFF6AB0F5)))),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White, modifier = Modifier.size(28.dp))
+            if (profilePictureUri != null) {
+                AsyncImage(
+                    model = profilePictureUri,
+                    contentDescription = "Foto de perfil",
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White, modifier = Modifier.size(28.dp))
+            }
         }
     }
 }
@@ -379,7 +392,6 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
 @Composable
 fun CupButton(ml: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = AppTheme.colors
-    // Usamos ElevatedButton com Outlined para ter sombra e borda
     Surface(
         modifier = modifier.height(52.dp),
         shape = RoundedCornerShape(12.dp),

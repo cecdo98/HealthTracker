@@ -19,6 +19,7 @@ data class UserPreferences(
     val height:    String = "",
     val age:       String = "",
     val isMetric:  Boolean = true, // true: kg/cm, false: lbs/inches
+    val profilePictureUri: String? = null,
 
     // Metas diárias
     val stepsGoal:   Int = 10000,
@@ -56,6 +57,7 @@ object PrefsKeys {
     val HEIGHT     = stringPreferencesKey("height")
     val AGE        = stringPreferencesKey("age")
     val IS_METRIC  = booleanPreferencesKey("is_metric")
+    val PROFILE_PICTURE_URI = stringPreferencesKey("profile_picture_uri")
     // Metas
     val STEPS_GOAL = intPreferencesKey("steps_goal")
     val WATER_GOAL = intPreferencesKey("water_goal_ml")
@@ -92,6 +94,7 @@ class UserPreferencesDataStore(private val context: Context) {
                 height       = p[PrefsKeys.HEIGHT]        ?: "",
                 age          = p[PrefsKeys.AGE]           ?: "",
                 isMetric     = p[PrefsKeys.IS_METRIC]     ?: true,
+                profilePictureUri = p[PrefsKeys.PROFILE_PICTURE_URI],
                 stepsGoal    = p[PrefsKeys.STEPS_GOAL]    ?: 10000,
                 waterGoalMl  = p[PrefsKeys.WATER_GOAL]    ?: 2500,
                 notifWater   = p[PrefsKeys.NOTIF_WATER]   ?: false,
@@ -117,6 +120,16 @@ class UserPreferencesDataStore(private val context: Context) {
             p[PrefsKeys.HEIGHT]     = height
             p[PrefsKeys.AGE]        = age
             p[PrefsKeys.IS_METRIC]  = isMetric
+        }
+    }
+
+    suspend fun saveProfilePicture(uri: String?) {
+        context.appDataStore.edit { p ->
+            if (uri != null) {
+                p[PrefsKeys.PROFILE_PICTURE_URI] = uri
+            } else {
+                p.remove(PrefsKeys.PROFILE_PICTURE_URI)
+            }
         }
     }
 

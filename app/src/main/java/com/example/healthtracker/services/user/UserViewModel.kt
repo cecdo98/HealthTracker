@@ -34,12 +34,17 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     val todayWaterMl  get() = prefs.value.todayWaterMl
     val todayEmotion  get() = prefs.value.todayEmotion
     val todayCalories get() = prefs.value.todayCalories
+    val profilePictureUri get() = prefs.value.profilePictureUri
 
     // ──────────────────────────────────────────
     //  PERFIL
     // ──────────────────────────────────────────
     fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) {
         viewModelScope.launch { repo.saveProfile(firstName, lastName, weight, height, age, isMetric) }
+    }
+
+    fun saveProfilePicture(uri: String?) {
+        viewModelScope.launch { repo.saveProfilePicture(uri) }
     }
 
     // ──────────────────────────────────────────
