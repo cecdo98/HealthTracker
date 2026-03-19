@@ -5,8 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,12 +15,10 @@ import com.example.healthtracker.services.steps.StepForegroundService
 import com.example.healthtracker.services.user.UserViewModel
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
-            val windowSizeClass = calculateWindowSizeClass(this)
             val userViewModel: UserViewModel = viewModel()
             val prefs by userViewModel.prefs.collectAsState()
 
@@ -36,7 +32,7 @@ class MainActivity : ComponentActivity() {
             }
 
             RequestPermissions()
-            HealthTrackerApp(userViewModel, windowSizeClass)
+            HealthTrackerApp(userViewModel)
         }
     }
 }
