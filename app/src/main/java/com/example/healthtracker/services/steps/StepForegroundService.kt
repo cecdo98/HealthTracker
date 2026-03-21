@@ -12,29 +12,28 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.healthtracker.MainActivity
 import com.example.healthtracker.R
 import com.example.healthtracker.data.UserRepository
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.flow.first
 
 class StepForegroundService : Service(), SensorEventListener {
 
     companion object {
-        const val CHANNEL_ID     = "step_counter_channel"
+        const val CHANNEL_ID = "step_counter_channel"
         const val NOTIFICATION_ID = 1
 
-        // Inicia o serviço
         fun start(context: Context) {
             val intent = Intent(context, StepForegroundService::class.java)
             context.startForegroundService(intent)
         }
 
-        // Para o serviço
         fun stop(context: Context) {
             val intent = Intent(context, StepForegroundService::class.java)
             context.stopService(intent)
@@ -44,71 +43,90 @@ class StepForegroundService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private lateinit var repo: UserRepository
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var initJob: Job? = null
 
-    private var stepsAtStart   = -1
-    private var savedStepsToday = 0
+    private var stepsAtStart = -1
+    private var currentStepsToday = 0
+    private var lastSavedDate = ""
 
-    // ── onCreate — chamado uma vez quando o serviço arranca ──
     override fun onCreate() {
         super.onCreate()
-        repo          = UserRepository(applicationContext)
+        repo = UserRepository(applicationContext)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(0))
-        registerStepSensor()
-        loadSavedSteps()
-    }
-
-    // ── Carrega os passos já guardados no DataStore ──
-    private fun loadSavedSteps() {
-        serviceScope.launch {
+        startForeground(NOTIFICATION_ID, buildNotification(currentStepsToday))
+        
+        // 1. Inicializa os dados da base de dados antes de processar o sensor
+        initJob = serviceScope.launch {
             val today = repo.checkAndResetIfNewDay()
-            val savedPrefs = repo.preferences.first()
-
-            savedStepsToday = savedPrefs.todaySteps
-            updateNotification(savedStepsToday)
+            lastSavedDate = today
+            val prefs = repo.preferences.first()
+            currentStepsToday = prefs.todaySteps
+            updateNotification(currentStepsToday)
+            Log.d("StepService", "Inicializado: $currentStepsToday passos em $today")
         }
+
+        // 2. Regista o sensor
+        registerStepSensor()
     }
 
-    // ── Regista o sensor de passos ──
     private fun registerStepSensor() {
         val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        sensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        if (sensor != null) {
+            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        } else {
+            Log.e("StepService", "Sensor de passos não disponível neste dispositivo!")
         }
     }
 
-    // ── Callback do sensor ──
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
-        val totalSinceReboot = event.values[0].toInt()
+        if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+            val totalSinceReboot = event.values[0].toInt()
+            val systemToday = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-        serviceScope.launch {
-            val today = repo.checkAndResetIfNewDay()
-            val prefs = repo.preferences.first()
+            serviceScope.launch {
+                // Aguarda que a inicialização termine para não sobrescrever com 0
+                initJob?.join()
+                
+                // Verifica mudança de dia
+                if (systemToday != lastSavedDate) {
+                    val actualToday = repo.checkAndResetIfNewDay()
+                    if (actualToday != lastSavedDate) {
+                        lastSavedDate = actualToday
+                        stepsAtStart = totalSinceReboot
+                        currentStepsToday = 0
+                    }
+                }
 
-            if (stepsAtStart == -1 || prefs.todaySteps == 0) {
-                // Se o dia resetou, recalculamos a base
-                stepsAtStart = totalSinceReboot - prefs.todaySteps
+                // Define a base de cálculo (total do sensor - o que já tínhamos hoje)
+                if (stepsAtStart == -1) {
+                    stepsAtStart = totalSinceReboot - currentStepsToday
+                }
+
+                val calculatedSteps = (totalSinceReboot - stepsAtStart).coerceAtLeast(0)
+                
+                // Só grava se houver progresso real
+                if (calculatedSteps > currentStepsToday) {
+                    currentStepsToday = calculatedSteps
+                    updateNotification(currentStepsToday)
+                    
+                    val prefs = repo.preferences.first()
+                    repo.saveDailyData(
+                        date = lastSavedDate,
+                        steps = currentStepsToday,
+                        waterMl = prefs.todayWaterMl,
+                        calories = (currentStepsToday * 0.04f).toInt(),
+                        emotion = prefs.todayEmotion
+                    )
+                }
             }
-
-            val todaySteps = (totalSinceReboot - stepsAtStart).coerceAtLeast(0)
-            updateNotification(todaySteps)
-
-            repo.saveDailyData(
-                date     = today,
-                steps    = todaySteps,
-                waterMl  = prefs.todayWaterMl,
-                calories = (todaySteps * 0.04f).toInt(),
-                emotion  = prefs.todayEmotion
-            )
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // ── Notificação persistente ──
     private fun buildNotification(steps: Int): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -123,8 +141,9 @@ class StepForegroundService : Service(), SensorEventListener {
             .setContentText("Passos hoje: $steps")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)       // não pode ser dispensada pelo utilizador
-            .setSilent(true)        // sem som
+            .setOngoing(true)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
             .build()
     }
 
@@ -137,15 +156,15 @@ class StepForegroundService : Service(), SensorEventListener {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Contador de Passos",
-            NotificationManager.IMPORTANCE_LOW   // IMPORTANCE_LOW = sem som nem vibração
+            NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Conta os passos em background"
+            description = "Contagem de passos em tempo real"
+            setShowBadge(false)
         }
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(channel)
     }
 
-    // ── Cleanup ──
     override fun onDestroy() {
         super.onDestroy()
         sensorManager.unregisterListener(this)
