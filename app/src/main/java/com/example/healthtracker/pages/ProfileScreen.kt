@@ -261,3 +261,27 @@ fun ProfileScreenDarkPreview() {
         }
     }
 }
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun ProfileScreenTabletLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
+                ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "75", height = "175", age = "28", isMetric = true)
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun ProfileScreenTabletDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            Scaffold(bottomBar = { BottomNavBar(selectedTab = 1) {} }) { padding ->
+                ProfileScreenContent(modifier = Modifier.padding(padding), firstName = "João", lastName = "Silva", weight = "165", height = "69", age = "28", isMetric = false)
+            }
+        }
+    }
+}
