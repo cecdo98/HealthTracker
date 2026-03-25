@@ -37,6 +37,7 @@ import com.example.healthtracker.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material.icons.filled.BarChart
 
 // ─────────────────────────────────────────────
 //  ENTRY POINT
@@ -100,7 +101,9 @@ fun HealthTrackerScreen(
                 contentAlignment = Alignment.TopCenter
             ) {
                 val contentModifier = if (useNavRail) {
-                    Modifier.widthIn(max = 800.dp).fillMaxHeight()
+                    Modifier
+                        .widthIn(max = 800.dp)
+                        .fillMaxHeight()
                 } else {
                     Modifier.fillMaxSize()
                 }
@@ -108,7 +111,16 @@ fun HealthTrackerScreen(
                 Box(modifier = contentModifier) {
                     when (selectedTab) {
                         1 -> ProfileScreen(viewModel = userViewModel)
-                        2 -> SettingScreen(
+                        2 -> {
+                            val history by userViewModel.historyEntries.collectAsState()
+                            StatsScreen(
+                                todayEmotion = prefs.todayEmotion,
+                                todayWaterMl = prefs.todayWaterMl,
+                                waterGoalMl = prefs.waterGoalMl,
+                                history = history
+                            )
+                        }
+                        3 -> SettingScreen(
                             viewModel = userViewModel,
                             isDarkMode = isDarkMode,
                             onDarkModeToggle = onDarkModeToggle
@@ -142,14 +154,16 @@ fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val items = listOf(
         Icons.Default.Home to "Início",
         Icons.Default.Person to "Perfil",
-        Icons.Default.Tune to "Definições"
+        Icons.Default.Tune to "Definições",
+        Icons.Default.BarChart to "Stats"
     )
     NavigationRail(
         containerColor = c.card,
 
-    ) {
+        ) {
         Spacer(Modifier.weight(1f))
-        items.forEachIndexed { index, (icon, label) ->
+        items.forEachIndexed { index, pair ->
+            val (icon, label) = pair
             NavigationRailItem(
                 selected = selectedTab == index,
                 onClick = { onTabSelected(index) },
@@ -177,10 +191,13 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val items = listOf(
         Icons.Default.Home   to "Início",
         Icons.Default.Person to "Perfil",
+        Icons.Default.BarChart to "Estatísticas",
         Icons.Default.Tune   to "Definições"
+
     )
     NavigationBar(containerColor = c.card, tonalElevation = 8.dp) {
-        items.forEachIndexed { index, (icon, label) ->
+        items.forEachIndexed { index, pair ->
+            val (icon, label) = pair
             NavigationBarItem(
                 selected = selectedTab == index,
                 onClick  = { onTabSelected(index) },
@@ -243,7 +260,9 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
     val today = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("pt")).format(Date())
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -253,7 +272,8 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
         }
         Box(
             modifier = Modifier
-                .size(48.dp).clip(CircleShape)
+                .size(48.dp)
+                .clip(CircleShape)
                 .background(Brush.linearGradient(colors = listOf(c.primary, Color(0xFF6AB0F5)))),
             contentAlignment = Alignment.Center
         ) {
@@ -261,7 +281,9 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
                 AsyncImage(
                     model = profilePictureUri,
                     contentDescription = "Foto de perfil",
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -346,7 +368,11 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 emotions.forEachIndexed { index, (emoji, label) ->
                     val isSelected = selectedEmotion == index
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent).clickable { onEmotionSelected(index) }.padding(horizontal = 6.dp, vertical = 6.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent)
+                        .clickable { onEmotionSelected(index) }
+                        .padding(horizontal = 6.dp, vertical = 6.dp)) {
                         Text(text = emoji, fontSize = 26.sp)
                         Spacer(Modifier.height(2.dp))
                         Text(text = label, fontSize = 9.sp, color = if (isSelected) c.primary else c.textSecondary, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center)
@@ -476,9 +502,13 @@ fun HomeScreenDarkPreview() {
 fun HomeScreenTabletPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
-            Row(modifier = Modifier.fillMaxSize().background(LightColors.background)) {
+            Row(modifier = Modifier
+                .fillMaxSize()
+                .background(LightColors.background)) {
                 NavRail(0) {}
-                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                Box(modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                     Scaffold(
                         modifier = Modifier.widthIn(max = 800.dp),
                         containerColor = LightColors.background
@@ -499,9 +529,13 @@ fun HomeScreenTabletPreview() {
 fun HomeScreenTabletDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
-            Row(modifier = Modifier.fillMaxSize().background(DarkColors.background)) {
+            Row(modifier = Modifier
+                .fillMaxSize()
+                .background(DarkColors.background)) {
                 NavRail(0) {}
-                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                Box(modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                     Scaffold(
                         modifier = Modifier.widthIn(max = 800.dp),
                         containerColor = DarkColors.background

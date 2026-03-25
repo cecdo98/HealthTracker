@@ -14,6 +14,8 @@ class UserRepository(context: Context) {
     private val dataStore = UserPreferencesDataStore(context)
     private val dao       = AppDatabase.getInstance(context).dailyEntryDao()
 
+    val allEntries: Flow<List<DailyEntryEntity>> = AppDatabase.getInstance(context).dailyEntryDao().getAllEntries()
+
     val preferences: Flow<UserPreferences> = dataStore.flow
 
     suspend fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) =

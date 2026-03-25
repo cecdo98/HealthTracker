@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.healthtracker.data.UserPreferences
 import com.example.healthtracker.data.UserRepository
+import com.example.healthtracker.data.room.DailyEntryEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -13,13 +14,26 @@ import java.util.Locale
 
 class UserViewModel(application: Application) : AndroidViewModel(application) {
 
+    // O repositório já centraliza o acesso à base de dados e ao datastore
     private val repo = UserRepository(application)
 
+
+    // --- Preferências (DataStore - Dados de Hoje) ---
     val prefs: StateFlow<UserPreferences> = repo.preferences
         .stateIn(
             scope        = viewModelScope,
             started      = SharingStarted.WhileSubscribed(5_000),
             initialValue = UserPreferences()
+        )
+
+    // --- Histórico (Room - Dados Passados) ---
+    // CORREÇÃO: Removida a linha que usava 'context' e 'healthDb' diretamente.
+    // O ViewModel agora lê corretamente do Repository.
+    val historyEntries: StateFlow<List<DailyEntryEntity>> = repo.allEntries
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
         )
 
     // ── Atalhos de leitura ──
@@ -66,7 +80,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ── Guarda só o dark mode (chamado pelo toggle) ──
     fun saveDarkMode(enabled: Boolean) {
         viewModelScope.launch { repo.saveDarkMode(enabled) }
     }
@@ -75,7 +88,8 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     //  ÁGUA & EMOÇÃO
     // ──────────────────────────────────────────
     fun addWater(ml: Int) {
-        val newTotal = (prefs.value.todayWaterMl + ml).coerceAtMost(prefs.value.waterGoalMl)
+        // Permitimos ultrapassar a meta para que o gráfico mostre o valor real consumido
+        val newTotal = (prefs.value.todayWaterMl + ml)
         saveDailyData(waterMl = newTotal)
     }
 

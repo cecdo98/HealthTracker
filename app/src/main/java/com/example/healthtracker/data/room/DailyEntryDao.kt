@@ -6,6 +6,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DailyEntryDao {
 
+    @Query("SELECT * FROM daily_entries ORDER BY date ASC")
+    fun getAllEntries(): Flow<List<DailyEntryEntity>>
+
     // Guarda ou atualiza o dia
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: DailyEntryEntity)
