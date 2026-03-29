@@ -20,9 +20,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Devices
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// IMPORT IMPORTANTE: Verifica se o caminho da tua Entity é este
 import com.example.healthtracker.data.room.DailyEntryEntity
 import com.example.healthtracker.ui.theme.AppTheme
 
@@ -133,7 +134,9 @@ fun StatsChartCard(
             }
             Text(subtitle, fontSize = 12.sp, color = c.textSecondary)
             Spacer(Modifier.height(24.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)) {
                 content()
             }
         }
@@ -146,7 +149,6 @@ fun SimpleBarChart(
     maxValue: Float,
     barColor: Color
 ) {
-    val c = AppTheme.colors
     Canvas(modifier = Modifier.fillMaxSize()) {
         if (data.isEmpty()) return@Canvas
         val spacing = size.width / (data.size + 1)
