@@ -5,27 +5,23 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocalDrink
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Devices
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -37,7 +33,6 @@ import com.example.healthtracker.ui.theme.LocalAppColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.material.icons.filled.BarChart
 
 // ─────────────────────────────────────────────
 //  ENTRY POINT
@@ -67,7 +62,7 @@ fun HealthTrackerApp(
 }
 
 // ─────────────────────────────────────────────
-//  ECRÃ PRINCIPAL (Adaptativo e Ajustado)
+//  ECRÃ PRINCIPAL (Lógica de Navegação Corrigida)
 // ─────────────────────────────────────────────
 @Composable
 fun HealthTrackerScreen(
@@ -76,21 +71,40 @@ fun HealthTrackerScreen(
     onDarkModeToggle: (Boolean) -> Unit = {},
     windowSizeClass: WindowSizeClass? = null
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    // Estados para controlar os ecrãs de detalhe
+    var showStepDetails by remember { mutableStateOf(false) }
+    var showEmotionDetails by remember { mutableStateOf(false) }
+    var showWaterDetails by remember { mutableStateOf(false) }
+
     val prefs by userViewModel.prefs.collectAsState()
-    
+    val history by userViewModel.historyEntries.collectAsState()
+
     val useNavRail = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
     Row(modifier = Modifier.fillMaxSize()) {
         if (useNavRail) {
-            NavRail(selectedTab) { selectedTab = it }
+            NavRail(selectedTab) {
+                selectedTab = it
+                // Reset de detalhes ao mudar de tab
+                showStepDetails = false
+                showEmotionDetails = false
+                showWaterDetails = false
+            }
         }
-        
+
         Scaffold(
             containerColor = AppTheme.colors.background,
             bottomBar = {
-                if (!useNavRail) {
-                    BottomNavBar(selectedTab) { selectedTab = it }
+                // Esconder a barra se algum detalhe estiver aberto
+                if (!useNavRail && !showStepDetails && !showEmotionDetails && !showWaterDetails) {
+                    BottomNavBar(selectedTab) {
+                        selectedTab = it
+                        showStepDetails = false
+                        showEmotionDetails = false
+                        showWaterDetails = false
+                    }
                 }
             }
         ) { padding ->
@@ -101,43 +115,68 @@ fun HealthTrackerScreen(
                 contentAlignment = Alignment.TopCenter
             ) {
                 val contentModifier = if (useNavRail) {
-                    Modifier
-                        .widthIn(max = 800.dp)
-                        .fillMaxHeight()
+                    Modifier.widthIn(max = 800.dp).fillMaxHeight()
                 } else {
                     Modifier.fillMaxSize()
                 }
 
                 Box(modifier = contentModifier) {
-                    when (selectedTab) {
-                        1 -> ProfileScreen(viewModel = userViewModel)
-                        2 -> {
-                            val history by userViewModel.historyEntries.collectAsState()
-                            StatsScreen(
-                                todayEmotion = prefs.todayEmotion,
-                                todayWaterMl = prefs.todayWaterMl,
-                                waterGoalMl = prefs.waterGoalMl,
-                                history = history
+                    when {
+                        showStepDetails -> {
+                            StepsDetailScreen(
+                                todaySteps = prefs.todaySteps,
+                                stepsGoal = prefs.stepsGoal,
+                                history = history,
+                                onBack = { showStepDetails = false }
                             )
                         }
-                        3 -> SettingScreen(
-                            viewModel = userViewModel,
-                            isDarkMode = isDarkMode,
-                            onDarkModeToggle = onDarkModeToggle
-                        )
-                        else -> HomeScreenContent(
-                            firstName = prefs.firstName,
-                            lastName = prefs.lastName,
-                            todaySteps = prefs.todaySteps,
-                            stepsGoal = prefs.stepsGoal,
-                            todayEmotion = prefs.todayEmotion,
-                            todayWaterMl = prefs.todayWaterMl,
-                            waterGoalMl = prefs.waterGoalMl,
-                            onEmotionSelected = { userViewModel.setEmotion(it) },
-                            onAddWater = { userViewModel.addWater(it) },
-                            isExpanded = useNavRail,
-                            profilePictureUri = prefs.profilePictureUri
-                        )
+                        showEmotionDetails -> {
+                            EmotionDetailScreen(
+                                todayEmotion = prefs.todayEmotion,
+                                history = history,
+                                onBack = { showEmotionDetails = false }
+                            )
+                        }
+                        showWaterDetails -> {
+                            WaterDetailScreen(
+                                todayWaterMl = prefs.todayWaterMl,
+                                waterGoalMl = prefs.waterGoalMl,
+                                history = history,
+                                onBack = { showWaterDetails = false }
+                            )
+                        }
+                        else -> {
+                            when (selectedTab) {
+                                1 -> ProfileScreen(viewModel = userViewModel)
+                                2 -> StatsScreen(
+                                    todayEmotion = prefs.todayEmotion,
+                                    todayWaterMl = prefs.todayWaterMl,
+                                    waterGoalMl = prefs.waterGoalMl,
+                                    history = history
+                                )
+                                3 -> SettingScreen(
+                                    viewModel = userViewModel,
+                                    isDarkMode = isDarkMode,
+                                    onDarkModeToggle = onDarkModeToggle
+                                )
+                                else -> HomeScreenContent(
+                                    firstName = prefs.firstName,
+                                    lastName = prefs.lastName,
+                                    todaySteps = prefs.todaySteps,
+                                    stepsGoal = prefs.stepsGoal,
+                                    todayEmotion = prefs.todayEmotion,
+                                    todayWaterMl = prefs.todayWaterMl,
+                                    waterGoalMl = prefs.waterGoalMl,
+                                    onEmotionSelected = { userViewModel.setEmotion(it) },
+                                    onAddWater = { userViewModel.addWater(it) },
+                                    onStepsClick = { showStepDetails = true },
+                                    onEmotionClick = { showEmotionDetails = true },
+                                    onWaterClick = { showWaterDetails = true },
+                                    isExpanded = useNavRail,
+                                    profilePictureUri = prefs.profilePictureUri
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -146,7 +185,7 @@ fun HealthTrackerScreen(
 }
 
 // ─────────────────────────────────────────────
-//  NAVIGATION RAIL
+//  NAVIGATION COMPONENTS
 // ─────────────────────────────────────────────
 @Composable
 fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
@@ -154,13 +193,10 @@ fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val items = listOf(
         Icons.Default.Home to "Início",
         Icons.Default.Person to "Perfil",
-        Icons.Default.Tune to "Definições",
-        Icons.Default.BarChart to "Stats"
+        Icons.Default.BarChart to "Stats",
+        Icons.Default.Tune to "Definições"
     )
-    NavigationRail(
-        containerColor = c.card,
-
-        ) {
+    NavigationRail(containerColor = c.card) {
         Spacer(Modifier.weight(1f))
         items.forEachIndexed { index, pair ->
             val (icon, label) = pair
@@ -182,18 +218,14 @@ fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     }
 }
 
-// ─────────────────────────────────────────────
-//  BOTTOM NAV BAR
-// ─────────────────────────────────────────────
 @Composable
 fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     val c = AppTheme.colors
     val items = listOf(
-        Icons.Default.Home   to "Início",
+        Icons.Default.Home to "Início",
         Icons.Default.Person to "Perfil",
-        Icons.Default.BarChart to "Estatísticas",
-        Icons.Default.Tune   to "Definições"
-
+        Icons.Default.BarChart to "Stats",
+        Icons.Default.Tune to "Definições"
     )
     NavigationBar(containerColor = c.card, tonalElevation = 8.dp) {
         items.forEachIndexed { index, pair ->
@@ -201,10 +233,20 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             NavigationBarItem(
                 selected = selectedTab == index,
                 onClick  = { onTabSelected(index) },
-                icon = { Icon(imageVector = icon, contentDescription = label,
-                    tint = if (selectedTab == index) c.navSelected else c.navUnselected) },
-                label = { Text(text = label, fontSize = 10.sp,
-                    color = if (selectedTab == index) c.navSelected else c.navUnselected) },
+                icon = {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = if (selectedTab == index) c.navSelected else c.navUnselected
+                    )
+                },
+                label = {
+                    Text(
+                        text = label,
+                        fontSize = 10.sp,
+                        color = if (selectedTab == index) c.navSelected else c.navUnselected
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(indicatorColor = c.primary.copy(alpha = 0.12f))
             )
         }
@@ -212,7 +254,7 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 }
 
 // ─────────────────────────────────────────────
-//  CONTENT HOME
+//  CONTENT HOME (Com Cliques nos Cards)
 // ─────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
@@ -226,6 +268,9 @@ fun HomeScreenContent(
     waterGoalMl: Int = 2500,
     onEmotionSelected: (Int) -> Unit = {},
     onAddWater: (Int) -> Unit = {},
+    onStepsClick: () -> Unit = {},
+    onEmotionClick: () -> Unit = {},
+    onWaterClick: () -> Unit = {},
     isExpanded: Boolean = false,
     profilePictureUri: String? = null
 ) {
@@ -239,15 +284,28 @@ fun HomeScreenContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         HeaderSection(firstName = firstName, lastName = lastName, profilePictureUri = profilePictureUri)
-        StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
-        EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
-        WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
+
+        // Card de passos clicável
+        Box(modifier = Modifier.clickable { onStepsClick() }) {
+            StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
+        }
+
+        // Card emocional clicável
+        Box(modifier = Modifier.clickable { onEmotionClick() }) {
+            EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
+        }
+
+        // Card de água clicável
+        Box(modifier = Modifier.clickable { onWaterClick() }) {
+            WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
+        }
     }
 }
 
 // ─────────────────────────────────────────────
-//  HEADER
+//  COMPONENTES DE SUPORTE
 // ─────────────────────────────────────────────
+
 @Composable
 fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureUri: String? = null) {
     val c = AppTheme.colors
@@ -260,9 +318,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
     val today = SimpleDateFormat("d 'de' MMMM, yyyy", Locale("pt")).format(Date())
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -271,9 +327,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
             Text(today, fontSize = 13.sp, color = c.textSecondary)
         }
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
+            modifier = Modifier.size(48.dp).clip(CircleShape)
                 .background(Brush.linearGradient(colors = listOf(c.primary, Color(0xFF6AB0F5)))),
             contentAlignment = Alignment.Center
         ) {
@@ -281,9 +335,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
                 AsyncImage(
                     model = profilePictureUri,
                     contentDescription = "Foto de perfil",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -293,9 +345,6 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
     }
 }
 
-// ─────────────────────────────────────────────
-//  STEPS CARD
-// ─────────────────────────────────────────────
 @Composable
 fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean = false) {
     val c = AppTheme.colors
@@ -304,7 +353,8 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean
     val calories   = (stepsCurrent * 0.04f).toInt()
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(containerColor = c.card),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
@@ -321,11 +371,9 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean
                         activeColor = c.primary, size = 72.dp, strokeWidth = 8.dp)
                     Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = c.primary, modifier = Modifier.size(32.dp))
                 }
-                
-                if (!isExpanded) {
-                    Spacer(Modifier.width(16.dp))
-                }
-                
+
+                if (!isExpanded) Spacer(Modifier.width(16.dp))
+
                 Column(horizontalAlignment = if (isExpanded) Alignment.End else Alignment.Start) {
                     Text("Passos ${"%,d".format(stepsCurrent)} / ${"%,d".format(stepsGoal)}",
                         fontSize = 14.sp, color = c.textPrimary, fontWeight = FontWeight.Medium)
@@ -338,9 +386,6 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean
     }
 }
 
-// ─────────────────────────────────────────────
-//  PROGRESS RING
-// ─────────────────────────────────────────────
 @Composable
 fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp) {
     val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1000, easing = FastOutSlowInEasing), label = "progress")
@@ -353,9 +398,6 @@ fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color,
     }
 }
 
-// ─────────────────────────────────────────────
-//  EMOTIONAL CARD
-// ─────────────────────────────────────────────
 @Composable
 fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}) {
     val c = AppTheme.colors
@@ -366,7 +408,8 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
             Text("Como se sente hoje?", fontSize = 12.sp, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                emotions.forEachIndexed { index, (emoji, label) ->
+                emotions.forEachIndexed { index, pair ->
+                    val (emoji, label) = pair
                     val isSelected = selectedEmotion == index
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
@@ -383,9 +426,6 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
     }
 }
 
-// ─────────────────────────────────────────────
-//  WATER CARD
-// ─────────────────────────────────────────────
 @Composable
 fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}) {
     val c = AppTheme.colors
@@ -399,14 +439,26 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     WaterBottle(progress = progress, modifier = Modifier.size(72.dp))
                     Spacer(Modifier.height(4.dp))
-                    Text("${totalMl}ml", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.primary)
-                    Text("/ ${goalMl}ml", fontSize = 10.sp, color = c.textSecondary)
+                    Text("${totalMl}ml", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.primary)
+                    Text("de ${goalMl}ml", fontSize = 11.sp, color = c.textSecondary)
                 }
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    cupOptions.chunked(2).forEach { rowItems ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            rowItems.forEach { ml -> CupButton(ml = ml, modifier = Modifier.weight(1f), onClick = { onAddWater(ml) }) }
+                Spacer(Modifier.width(20.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Adicionar rápido", fontSize = 12.sp, color = c.textSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+                        cupOptions.forEach { ml ->
+                            Button(
+                                onClick = { onAddWater(ml) },
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                modifier = Modifier.height(34.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = c.primary.copy(alpha = 0.1f), contentColor = c.primary)
+                            ) {
+                                Icon(Icons.Default.LocalDrink, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("${ml}ml", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -416,136 +468,58 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
 }
 
 @Composable
-fun CupButton(ml: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val c = AppTheme.colors
-    Surface(
-        modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = c.card,
-        tonalElevation = 2.dp,
-        shadowElevation = 3.dp, // Sombra abaixo do botão
-        border = BorderStroke(1.dp, c.primary.copy(alpha = 0.4f)),
-        onClick = onClick
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(4.dp)
-        ) {
-            Icon(imageVector = Icons.Default.LocalDrink, contentDescription = null, tint = c.primary, modifier = Modifier.size(18.dp))
-            Text(text = "$ml ml", fontSize = 10.sp, color = c.primary, fontWeight = FontWeight.Medium)
-        }
-    }
-}
-
-@Composable
 fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
     val c = AppTheme.colors
-    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1200, easing = FastOutSlowInEasing), label = "water")
+    val waterLevel by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), animationSpec = tween(1500, easing = EaseInOutSine), label = "water")
     Canvas(modifier = modifier) {
-        val w = size.width; val h = size.height
-        val bottleTop = h * 0.2f; val bottleLeft = w * 0.25f; val bottleRight = w * 0.75f
-        val bottleBottom = h * 0.95f; val neckTop = h * 0.05f
-        val neckLeft = w * 0.38f; val neckRight = w * 0.62f
-        val path = Path().apply {
-            moveTo(neckLeft, neckTop); lineTo(neckRight, neckTop); lineTo(neckRight, bottleTop)
-            lineTo(bottleRight, bottleTop + h * 0.08f); lineTo(bottleRight, bottleBottom)
-            lineTo(bottleLeft, bottleBottom); lineTo(bottleLeft, bottleTop + h * 0.08f)
-            lineTo(neckLeft, bottleTop); close()
+        val w = size.width
+        val h = size.height
+        val bottlePath = Path().apply {
+            moveTo(w * 0.3f, h * 0.1f)
+            lineTo(w * 0.7f, h * 0.1f)
+            lineTo(w * 0.75f, h * 0.25f)
+            lineTo(w * 0.85f, h * 0.9f)
+            quadraticBezierTo(w * 0.85f, h, w * 0.7f, h)
+            lineTo(w * 0.3f, h)
+            quadraticBezierTo(w * 0.15f, h, w * 0.15f, h * 0.9f)
+            lineTo(w * 0.25f, h * 0.25f)
+            close()
         }
-        drawPath(path, c.primary.copy(alpha = 0.15f))
-        val waterLevel = bottleBottom - (bottleBottom - bottleTop) * animatedProgress
-        val waterPath = Path().apply {
-            moveTo(bottleLeft, waterLevel); lineTo(bottleRight, waterLevel)
-            lineTo(bottleRight, bottleBottom); lineTo(bottleLeft, bottleBottom); close()
+        drawPath(path = bottlePath, color = c.primary.copy(alpha = 0.1f))
+        clipPath(path = bottlePath) {
+            drawRect(color = Color(0xFF42A5F5), topLeft = Offset(0f, h * (1f - waterLevel)), size = Size(w, h * waterLevel))
         }
-        clipPath(path) { drawPath(waterPath, c.primary.copy(alpha = 0.8f)) }
-        drawPath(path, c.primary, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(path = bottlePath, color = c.primary, style = Stroke(width = 2.dp.toPx()))
     }
 }
 
-// ─────────────────────────────────────────────
-//  PREVIEWS
-// ─────────────────────────────────────────────
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun HomeScreenLightPreview() {
-    CompositionLocalProvider(LocalAppColors provides LightColors) {
-        MaterialTheme {
-            Scaffold(containerColor = LightColors.background,
-                bottomBar = { BottomNavBar(0) {} }) { padding ->
-                HomeScreenContent(modifier = Modifier.padding(padding),
-                    firstName = "João", lastName = "Silva",
-                    todaySteps = 7500, stepsGoal = 10000)
+fun FlowRow(mainAxisSpacing: Dp, crossAxisSpacing: Dp, content: @Composable () -> Unit) {
+    androidx.compose.ui.layout.Layout(content = content) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints) }
+        val rows = mutableListOf<List<androidx.compose.ui.layout.Placeable>>()
+        var currentRow = mutableListOf<androidx.compose.ui.layout.Placeable>()
+        var currentRowWidth = 0
+        placeables.forEach { p ->
+            if (currentRowWidth + p.width + mainAxisSpacing.roundToPx() > constraints.maxWidth && currentRow.isNotEmpty()) {
+                rows.add(currentRow)
+                currentRow = mutableListOf()
+                currentRowWidth = 0
             }
+            currentRow.add(p)
+            currentRowWidth += p.width + mainAxisSpacing.roundToPx()
         }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun HomeScreenDarkPreview() {
-    CompositionLocalProvider(LocalAppColors provides DarkColors) {
-        MaterialTheme(colorScheme = darkColorScheme()) {
-            Scaffold(containerColor = DarkColors.background,
-                bottomBar = { BottomNavBar(0) {} }) { padding ->
-                HomeScreenContent(modifier = Modifier.padding(padding),
-                    firstName = "João", lastName = "Silva",
-                    todaySteps = 7500, stepsGoal = 10000)
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
-@Composable
-fun HomeScreenTabletPreview() {
-    CompositionLocalProvider(LocalAppColors provides LightColors) {
-        MaterialTheme {
-            Row(modifier = Modifier
-                .fillMaxSize()
-                .background(LightColors.background)) {
-                NavRail(0) {}
-                Box(modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Scaffold(
-                        modifier = Modifier.widthIn(max = 800.dp),
-                        containerColor = LightColors.background
-                    ) { padding ->
-                        HomeScreenContent(modifier = Modifier.padding(padding),
-                            firstName = "João", lastName = "Silva",
-                            todaySteps = 7500, stepsGoal = 10000,
-                            isExpanded = true)
-                    }
+        rows.add(currentRow)
+        val height = rows.sumOf { r -> r.maxOf { it.height } } + (rows.size - 1) * crossAxisSpacing.roundToPx()
+        layout(constraints.maxWidth, height) {
+            var y = 0
+            rows.forEach { r ->
+                var x = 0
+                r.forEach { p ->
+                    p.place(x, y)
+                    x += p.width + mainAxisSpacing.roundToPx()
                 }
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
-@Composable
-fun HomeScreenTabletDarkPreview() {
-    CompositionLocalProvider(LocalAppColors provides DarkColors) {
-        MaterialTheme(colorScheme = darkColorScheme()) {
-            Row(modifier = Modifier
-                .fillMaxSize()
-                .background(DarkColors.background)) {
-                NavRail(0) {}
-                Box(modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Scaffold(
-                        modifier = Modifier.widthIn(max = 800.dp),
-                        containerColor = DarkColors.background
-                    ) { padding ->
-                        HomeScreenContent(modifier = Modifier.padding(padding),
-                            firstName = "João", lastName = "Silva",
-                            todaySteps = 7500, stepsGoal = 10000,
-                            isExpanded = true)
-                    }
-                }
+                y += r.maxOf { it.height } + crossAxisSpacing.roundToPx()
             }
         }
     }
