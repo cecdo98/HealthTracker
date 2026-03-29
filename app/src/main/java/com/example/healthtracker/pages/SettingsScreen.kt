@@ -213,52 +213,243 @@ fun SettingScreenContent(
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Definir metas diárias", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
-                GoalRow("Passos", stepsGoalText, "",   6, KeyboardType.Number, c) { stepsGoalText = it; settingsSaved = false }
-                GoalRow("Água",   waterGoalText, "ml", 5, KeyboardType.Number, c) { waterGoalText = it; settingsSaved = false }
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "Definir metas diárias",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = c.textPrimary
+                )
+
+                GoalRow("Passos", stepsGoalText, "", 6, KeyboardType.Number, c) {
+                    stepsGoalText = it
+                    settingsSaved = false
+                }
+
+                GoalRow("Água", waterGoalText, "ml", 5, KeyboardType.Number, c) {
+                    waterGoalText = it
+                    settingsSaved = false
+                }
+
+                // 🔽 BOTÃO AGORA AQUI
+                Button(
+                    onClick = {
+                        val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                        val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                        onSave(
+                            steps,
+                            water,
+                            notifWaterState,
+                            notifStepsState,
+                            notifMoodState,
+                            waterFreqState,
+                            moodFreqState,
+                            googleState
+                        )
+
+                        settingsSaved = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = c.primary)
+                ) {
+                    Text("Guardar metas", color = Color.White)
+                }
+
+                if (settingsSaved) {
+                    Text(
+                        "✓ Metas guardadas!",
+                        color = c.primary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
             }
         }
 
-        ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Notificações", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    "Notificações",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = c.textPrimary
+                )
+
                 Spacer(Modifier.height(8.dp))
-                NotifRowSteps(notifStepsState, c) { notifStepsState = it; settingsSaved = false }
+
+                // ───────── PASSOS ─────────
+                NotifRowSteps(notifStepsState, c) {
+                    notifStepsState = it
+                    settingsSaved = false
+
+                    val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                    val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                    onSave(
+                        steps, water,
+                        notifWaterState,
+                        notifStepsState,
+                        notifMoodState,
+                        waterFreqState,
+                        moodFreqState,
+                        googleState
+                    )
+                }
+
                 HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-                NotifRowWithFreq("😊 Humor", "Lembrar para registar emoção", notifMoodState, moodFreqState, c, { notifMoodState = it; settingsSaved = false }, { moodFreqState = it; settingsSaved = false })
+
+                // ───────── HUMOR ─────────
+                NotifRowWithFreq(
+                    "😊 Humor",
+                    "Lembrar para registar emoção",
+                    notifMoodState,
+                    moodFreqState,
+                    c,
+                    { isChecked ->
+                        notifMoodState = isChecked
+                        settingsSaved = false
+
+                        if (isChecked) {
+                            cancelRepeatingNotification(context, "mood", 101)
+
+                            scheduleRepeatingNotification(
+                                context,
+                                "mood",
+                                NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!,
+                                101
+                            )
+                        } else {
+                            cancelRepeatingNotification(context, "mood", 101)
+                        }
+
+                        val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                        val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                        onSave(
+                            steps, water,
+                            notifWaterState,
+                            notifStepsState,
+                            notifMoodState,
+                            waterFreqState,
+                            moodFreqState,
+                            googleState
+                        )
+                    },
+                    { newFreq ->
+                        moodFreqState = newFreq
+                        settingsSaved = false
+
+                        if (notifMoodState) {
+                            cancelRepeatingNotification(context, "mood", 101)
+
+                            scheduleRepeatingNotification(
+                                context,
+                                "mood",
+                                NOTIF_FREQUENCIES[newFreq]!!,
+                                101
+                            )
+                        }
+
+                        val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                        val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                        onSave(
+                            steps, water,
+                            notifWaterState,
+                            notifStepsState,
+                            notifMoodState,
+                            waterFreqState,
+                            moodFreqState,
+                            googleState
+                        )
+                    }
+                )
+
                 HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-                NotifRowWithFreq("💧 Água", "Lembrar para beber água", notifWaterState, waterFreqState, c, { notifWaterState = it; settingsSaved = false }, { waterFreqState = it; settingsSaved = false })
+
+                // ───────── ÁGUA ─────────
+                NotifRowWithFreq(
+                    "💧 Água",
+                    "Lembrar para beber água",
+                    notifWaterState,
+                    waterFreqState,
+                    c,
+                    { isChecked ->
+                        notifWaterState = isChecked
+                        settingsSaved = false
+
+                        if (isChecked) {
+                            cancelRepeatingNotification(context, "water", 100)
+
+                            scheduleRepeatingNotification(
+                                context,
+                                "water",
+                                NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!,
+                                100
+                            )
+                        } else {
+                            cancelRepeatingNotification(context, "water", 100)
+                        }
+
+                        val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                        val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                        onSave(
+                            steps, water,
+                            notifWaterState,
+                            notifStepsState,
+                            notifMoodState,
+                            waterFreqState,
+                            moodFreqState,
+                            googleState
+                        )
+                    },
+                    { newFreq ->
+                        waterFreqState = newFreq
+                        settingsSaved = false
+
+                        if (notifWaterState) {
+                            cancelRepeatingNotification(context, "water", 100)
+
+                            scheduleRepeatingNotification(
+                                context,
+                                "water",
+                                NOTIF_FREQUENCIES[newFreq]!!,
+                                100
+                            )
+                        }
+
+                        val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
+                        val water = waterGoalText.toIntOrNull() ?: waterGoalMl
+
+                        onSave(
+                            steps, water,
+                            notifWaterState,
+                            notifStepsState,
+                            notifMoodState,
+                            waterFreqState,
+                            moodFreqState,
+                            googleState
+                        )
+                    }
+                )
             }
         }
-
-        ReportsCard()
-
-        Button(
-            onClick = {
-                if (notifWaterState) scheduleRepeatingNotification(context, "water", NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
-                else cancelRepeatingNotification(context, "water", 100)
-                if (notifMoodState) scheduleRepeatingNotification(context, "mood", NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
-                else cancelRepeatingNotification(context, "mood", 101)
-                val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
-                val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-                onSave(steps, water, notifWaterState, notifStepsState, notifMoodState, waterFreqState, moodFreqState, googleState)
-                settingsSaved = true
-            },
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape    = RoundedCornerShape(12.dp),
-            colors   = ButtonDefaults.buttonColors(containerColor = c.primary),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-        ) {
-            Text("Guardar definições", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        }
-
-        if (settingsSaved) {
-            Text("✓ Definições guardadas!", color = c.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.CenterHorizontally))
-        }
-        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -320,46 +511,6 @@ private fun NotifRowSteps(checked: Boolean, c: com.example.healthtracker.ui.them
     }
 }
 
-@Composable
-fun ReportsCard() {
-    val c = AppTheme.colors
-    val exportItems = listOf(Triple(Icons.Default.DirectionsWalk, Color(0xFF4A90E2), "Passos"), Triple(Icons.Default.SentimentSatisfied, Color(0xFFFFB347), "Humor"), Triple(Icons.Default.WaterDrop, Color(0xFF5BC8F5), "Água"))
-    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Exportar relatórios", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
-            Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                exportItems.forEach { (icon, tint, label) ->
-                    OutlinedButton(
-                        onClick = { },
-                        modifier = Modifier.weight(1f).height(68.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, c.inputBorder),
-                        contentPadding = PaddingValues(4.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = c.textPrimary),
-
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
-                            Spacer(Modifier.height(4.dp))
-                            Text("Exportar", fontSize = 11.sp, color = c.textSecondary)
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth().height(40.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = c.primary),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-            ) {
-                Text("Exportar todos", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
-}
 
 // ─────────────────────────────────────────────
 //  PREVIEWS
