@@ -62,7 +62,7 @@ fun HealthTrackerApp(
 }
 
 // ─────────────────────────────────────────────
-//  ECRÃ PRINCIPAL (Lógica de Navegação Corrigida)
+//  ECRÃ PRINCIPAL (Lógica de Navegação e Detalhes)
 // ─────────────────────────────────────────────
 @Composable
 fun HealthTrackerScreen(
@@ -73,7 +73,7 @@ fun HealthTrackerScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Estados para controlar os ecrãs de detalhe
+    // Estados para controlar a visibilidade dos ecrãs de detalhe
     var showStepDetails by remember { mutableStateOf(false) }
     var showEmotionDetails by remember { mutableStateOf(false) }
     var showWaterDetails by remember { mutableStateOf(false) }
@@ -87,7 +87,6 @@ fun HealthTrackerScreen(
         if (useNavRail) {
             NavRail(selectedTab) {
                 selectedTab = it
-                // Reset de detalhes ao mudar de tab
                 showStepDetails = false
                 showEmotionDetails = false
                 showWaterDetails = false
@@ -97,7 +96,6 @@ fun HealthTrackerScreen(
         Scaffold(
             containerColor = AppTheme.colors.background,
             bottomBar = {
-                // Esconder a barra se algum detalhe estiver aberto
                 if (!useNavRail && !showStepDetails && !showEmotionDetails && !showWaterDetails) {
                     BottomNavBar(selectedTab) {
                         selectedTab = it
@@ -152,7 +150,8 @@ fun HealthTrackerScreen(
                                     todayEmotion = prefs.todayEmotion,
                                     todayWaterMl = prefs.todayWaterMl,
                                     waterGoalMl = prefs.waterGoalMl,
-                                    history = history
+                                    history = history,
+                                    userPrefs = prefs // Necessário para o PDF
                                 )
                                 3 -> SettingScreen(
                                     viewModel = userViewModel,
@@ -198,8 +197,8 @@ fun NavRail(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     )
     NavigationRail(containerColor = c.card) {
         Spacer(Modifier.weight(1f))
-        items.forEachIndexed { index, pair ->
-            val (icon, label) = pair
+        items.forEachIndexed { index, item ->
+            val (icon, label) = item
             NavigationRailItem(
                 selected = selectedTab == index,
                 onClick = { onTabSelected(index) },
@@ -228,8 +227,8 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
         Icons.Default.Tune to "Definições"
     )
     NavigationBar(containerColor = c.card, tonalElevation = 8.dp) {
-        items.forEachIndexed { index, pair ->
-            val (icon, label) = pair
+        items.forEachIndexed { index, item ->
+            val (icon, label) = item
             NavigationBarItem(
                 selected = selectedTab == index,
                 onClick  = { onTabSelected(index) },
@@ -254,7 +253,7 @@ fun BottomNavBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 }
 
 // ─────────────────────────────────────────────
-//  CONTENT HOME (Com Cliques nos Cards)
+//  CONTENT HOME
 // ─────────────────────────────────────────────
 @Composable
 fun HomeScreenContent(
@@ -285,26 +284,19 @@ fun HomeScreenContent(
     ) {
         HeaderSection(firstName = firstName, lastName = lastName, profilePictureUri = profilePictureUri)
 
-        // Card de passos clicável
         Box(modifier = Modifier.clickable { onStepsClick() }) {
             StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
         }
 
-        // Card emocional clicável
         Box(modifier = Modifier.clickable { onEmotionClick() }) {
             EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
         }
 
-        // Card de água clicável
         Box(modifier = Modifier.clickable { onWaterClick() }) {
             WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
         }
     }
 }
-
-// ─────────────────────────────────────────────
-//  COMPONENTES DE SUPORTE
-// ─────────────────────────────────────────────
 
 @Composable
 fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureUri: String? = null) {
@@ -345,12 +337,16 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
     }
 }
 
+// ─────────────────────────────────────────────
+//  CARDS E COMPONENTES GRÁFICOS
+// ─────────────────────────────────────────────
+
 @Composable
 fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean = false) {
     val c = AppTheme.colors
-    val progress   = if (stepsGoal > 0) stepsCurrent.toFloat() / stepsGoal.toFloat() else 0f
+    val progress = if (stepsGoal > 0) stepsCurrent.toFloat() / stepsGoal.toFloat() else 0f
     val distanceKm = stepsCurrent * 0.00078f
-    val calories   = (stepsCurrent * 0.04f).toInt()
+    val calories = (stepsCurrent * 0.04f).toInt()
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -408,8 +404,8 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
             Text("Como se sente hoje?", fontSize = 12.sp, color = c.textSecondary)
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                emotions.forEachIndexed { index, pair ->
-                    val (emoji, label) = pair
+                emotions.forEachIndexed { index, item ->
+                    val (emoji, label) = item
                     val isSelected = selectedEmotion == index
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))

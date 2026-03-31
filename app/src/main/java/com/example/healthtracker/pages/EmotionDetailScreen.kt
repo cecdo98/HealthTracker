@@ -1,5 +1,6 @@
 package com.example.healthtracker.pages
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,7 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,7 +36,7 @@ fun EmotionDetailScreen(
     val c = AppTheme.colors
     val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
 
-    // Simulação de estatística: Humor predominante
+    // Lógica: Humor predominante
     val allEmotions = history.map { it.emotionIndex } + todayEmotion
     val mostFrequentIndex = allEmotions.groupBy { it }.maxByOrNull { it.value.size }?.key ?: todayEmotion
 
@@ -72,8 +79,8 @@ fun EmotionDetailScreen(
                 }
             }
 
-            // Estatística Rápida
-            DetailMetricCard(
+            // Estatística Rápida - Nome alterado para evitar ambiguidade
+            EmotionMetricCard(
                 modifier = Modifier.fillMaxWidth(),
                 title = "Humor mais frequente",
                 value = emotions[mostFrequentIndex].second + " " + emotions[mostFrequentIndex].first,
@@ -81,14 +88,14 @@ fun EmotionDetailScreen(
                 color = c.primary
             )
 
-            // Gráfico de Histórico
-            StatsChartCard(
+            // Gráfico de Histórico - Nomes alterados para evitar ambiguidade
+            EmotionChartCard(
                 title = "Evolução Emocional",
-                subtitle = "Humor nos últimos dias (0: Estressado - 4: Muito Bem)",
+                subtitle = "Humor nos últimos dias (0-4)",
                 icon = Icons.Default.Face
             ) {
                 val emotionHistory = history.takeLast(6).map { it.emotionIndex.toFloat() } + todayEmotion.toFloat()
-                SimpleBarChart(
+                EmotionBarChart(
                     data = emotionHistory,
                     maxValue = 4f,
                     barColor = c.primary
@@ -98,4 +105,76 @@ fun EmotionDetailScreen(
     }
 }
 
+// ────────────────────────────────────────────────────────────
+// COMPONENTES AUXILIARES (Renomeados para evitar conflitos de Overload)
+// ────────────────────────────────────────────────────────────
 
+@Composable
+private fun EmotionMetricCard(
+    modifier: Modifier,
+    title: String,
+    value: String,
+    icon: ImageVector,
+    color: Color
+) {
+    val c = AppTheme.colors
+    ElevatedCard(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = c.card)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(title, fontSize = 12.sp, color = c.textSecondary)
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+        }
+    }
+}
+
+@Composable
+private fun EmotionChartCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    content: @Composable () -> Unit
+) {
+    val c = AppTheme.colors
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = c.card)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+            }
+            Text(subtitle, fontSize = 12.sp, color = c.textSecondary)
+            Spacer(Modifier.height(24.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmotionBarChart(data: List<Float>, maxValue: Float, barColor: Color) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        if (data.isEmpty()) return@Canvas
+        val spacing = size.width / (data.size + 1)
+        val barWidth = spacing * 0.7f
+        data.forEachIndexed { index, value ->
+            val x = spacing * (index + 1)
+            val barHeight = (value / maxValue) * size.height
+            drawRoundRect(
+                color = barColor.copy(alpha = if (index == data.size - 1) 1f else 0.4f),
+                topLeft = Offset(x - barWidth / 2, size.height - barHeight),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(4.dp.toPx())
+            )
+        }
+    }
+}

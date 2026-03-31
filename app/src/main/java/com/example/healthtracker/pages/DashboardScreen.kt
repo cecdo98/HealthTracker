@@ -1,12 +1,17 @@
 package com.example.healthtracker.pages
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material3.*
@@ -19,26 +24,55 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import com.example.healthtracker.data.UserPreferences
 import com.example.healthtracker.data.room.DailyEntryEntity
+import com.example.healthtracker.services.pdf.PdfGenerator
 import com.example.healthtracker.ui.theme.AppTheme
+import java.io.File
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatsScreen(
     todayEmotion: Int,
     todayWaterMl: Int,
     waterGoalMl: Int,
-    history: List<DailyEntryEntity> = emptyList()
+    history: List<DailyEntryEntity> = emptyList(),
+    userPrefs: UserPreferences = UserPreferences()
 ) {
     val c = AppTheme.colors
-    var selectedPeriod by remember { mutableIntStateOf(1) } // 0: Dia, 1: Semana, 2: Mês
+    val context = LocalContext.current
+    val pdfGenerator = remember { PdfGenerator(context) }
+
+    var selectedPeriod by remember { mutableIntStateOf(1) }
     val periods = listOf("Dia", "Semana", "Mês")
 
-    // Lógica de filtro de dados
+    // Lógica para abrir o PDF
+    val openPdf: (File) -> Unit = { file ->
+        try {
+            val uri: Uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(Intent.createChooser(intent, "Abrir Relatório"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Preparação de dados para os gráficos
     val waterData = remember(selectedPeriod, history, todayWaterMl) {
         val historicalValues = when (selectedPeriod) {
             0 -> emptyList()
@@ -67,6 +101,7 @@ fun StatsScreen(
     ) {
         Text("Estatísticas", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
 
+        // 1. Seletor de Período
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             periods.forEachIndexed { index, label ->
                 SegmentedButton(
@@ -84,83 +119,90 @@ fun StatsScreen(
             }
         }
 
-        // Gráfico de Emoções
-        StatsChartCard(
-            title = "Histórico Emocional",
-            subtitle = "Escala de 0 a 4 (Hoje: $todayEmotion)",
-            icon = Icons.Default.Face
-        ) {
-            SimpleBarChart(
-                data = emotionData,
-                maxValue = 4f,
-                barColor = c.primary
-            )
+        // 2. Gráfico de Emoções
+        StatsChartCard("Histórico Emocional", "Escala 0-4", Icons.Default.Face) {
+            SimpleBarChart(emotionData, 4f, c.primary)
         }
 
-        // Gráfico de Água
-        StatsChartCard(
-            title = "Consumo de Água",
-            subtitle = "Hoje: ${todayWaterMl}ml / Meta: ${waterGoalMl}ml",
-            icon = Icons.Default.LocalDrink
+        // 3. Gráfico de Água
+        StatsChartCard("Consumo de Água", "Hoje: ${todayWaterMl}ml", Icons.Default.LocalDrink) {
+            SimpleBarChart(waterData, waterGoalMl.toFloat().coerceAtLeast(1000f), Color(0xFF42A5F5))
+        }
+
+        // 4. CARD DE EXPORTAÇÃO PDF (Agora no final)
+        ExportPdfCard(
+            onClick = {
+                val generatedFile = pdfGenerator.generateHealthReport(userPrefs, history)
+                if (generatedFile != null && generatedFile.exists()) {
+                    openPdf(generatedFile)
+                }
+            }
+        )
+
+        // Espaço extra no fim para não ficar colado à barra de navegação
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun ExportPdfCard(onClick: () -> Unit) {
+    val c = AppTheme.colors
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = c.card)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            SimpleBarChart(
-                data = waterData,
-                maxValue = waterGoalMl.toFloat().coerceAtLeast(1000f),
-                barColor = Color(0xFF42A5F5)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(45.dp).background(c.primary.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Description, null, tint = c.primary, modifier = Modifier.size(24.dp))
+                }
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("Relatório de Saúde", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+                    Text("Gerar e abrir PDF", fontSize = 12.sp, color = c.textSecondary)
+                }
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = c.textSecondary.copy(alpha = 0.5f))
         }
     }
 }
 
 @Composable
-fun StatsChartCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    content: @Composable () -> Unit
-) {
+fun StatsChartCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable () -> Unit) {
     val c = AppTheme.colors
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = c.card),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(20.dp))
+                Icon(icon, null, tint = c.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
             }
             Text(subtitle, fontSize = 12.sp, color = c.textSecondary)
             Spacer(Modifier.height(24.dp))
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp)) {
-                content()
-            }
+            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) { content() }
         }
     }
 }
 
 @Composable
-fun SimpleBarChart(
-    data: List<Float>,
-    maxValue: Float,
-    barColor: Color
-) {
+fun SimpleBarChart(data: List<Float>, maxValue: Float, barColor: Color) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         if (data.isEmpty()) return@Canvas
         val spacing = size.width / (data.size + 1)
-        val barWidth = (size.width / (data.size + 1)) * 0.7f
-
+        val barWidth = spacing * 0.7f
         data.forEachIndexed { index, value ->
             val x = spacing * (index + 1)
             val barHeight = (value / maxValue) * size.height
-            val alpha = if (index == data.size - 1) 1f else 0.4f
-
             drawRoundRect(
-                color = barColor.copy(alpha = alpha),
+                color = barColor.copy(alpha = if (index == data.size - 1) 1f else 0.4f),
                 topLeft = Offset(x - barWidth / 2, size.height - barHeight),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(4.dp.toPx())
