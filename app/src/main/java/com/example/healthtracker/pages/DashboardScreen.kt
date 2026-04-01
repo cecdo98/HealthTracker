@@ -5,7 +5,8 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,9 @@ import com.example.healthtracker.data.UserPreferences
 import com.example.healthtracker.data.room.DailyEntryEntity
 import com.example.healthtracker.services.pdf.PdfGenerator
 import com.example.healthtracker.ui.theme.AppTheme
+import com.example.healthtracker.ui.theme.DarkColors
+import com.example.healthtracker.ui.theme.LightColors
+import com.example.healthtracker.ui.theme.LocalAppColors
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,7 +101,7 @@ fun StatsScreen(
             .background(c.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Estatísticas", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
 
@@ -119,17 +123,7 @@ fun StatsScreen(
             }
         }
 
-        // 2. Gráfico de Emoções
-        StatsChartCard("Histórico Emocional", "Escala 0-4", Icons.Default.Face) {
-            SimpleBarChart(emotionData, 4f, c.primary)
-        }
-
-        // 3. Gráfico de Água
-        StatsChartCard("Consumo de Água", "Hoje: ${todayWaterMl}ml", Icons.Default.LocalDrink) {
-            SimpleBarChart(waterData, waterGoalMl.toFloat().coerceAtLeast(1000f), Color(0xFF42A5F5))
-        }
-
-        // 4. CARD DE EXPORTAÇÃO PDF (Agora no final)
+        // 2. CARD DE EXPORTAÇÃO PDF (Agora no final)
         ExportPdfCard(
             onClick = {
                 val generatedFile = pdfGenerator.generateHealthReport(userPrefs, history)
@@ -139,8 +133,20 @@ fun StatsScreen(
             }
         )
 
+        // 3. Gráfico de Emoções
+        StatsChartCard("Histórico Emocional", "Escala 0-4", Icons.Default.Face) {
+            SimpleBarChart(emotionData, 4f, c.primary)
+        }
+
+        // 4. Gráfico de Água
+        StatsChartCard("Consumo de Água", "Hoje: ${todayWaterMl}ml", Icons.Default.LocalDrink) {
+            SimpleBarChart(waterData, waterGoalMl.toFloat().coerceAtLeast(1000f), Color(0xFF42A5F5))
+        }
+
+
+
         // Espaço extra no fim para não ficar colado à barra de navegação
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(100.dp))
     }
 }
 
@@ -206,6 +212,58 @@ fun SimpleBarChart(data: List<Float>, maxValue: Float, barColor: Color) {
                 topLeft = Offset(x - barWidth / 2, size.height - barHeight),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(4.dp.toPx())
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+//  PREVIEWS
+// ─────────────────────────────────────────────
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun StatsScreenLightPreview() {
+    val sampleHistory = listOf(
+        DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+        DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 0, calories = 280),
+        DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 3, calories = 120),
+        DailyEntryEntity(date = "2023-10-04", steps = 8000, waterMl = 2500, emotionIndex = 2, calories = 320),
+        DailyEntryEntity(date = "2023-10-05", steps = 10000, waterMl = 2000, emotionIndex = 1, calories = 400),
+        DailyEntryEntity(date = "2023-10-06", steps = 6000, waterMl = 1700, emotionIndex = 4, calories = 240)
+    )
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            StatsScreen(
+                todayEmotion = 2,
+                todayWaterMl = 2100,
+                waterGoalMl = 2500,
+                history = sampleHistory,
+                userPrefs = UserPreferences(firstName = "João", lastName = "Silva")
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun StatsScreenDarkPreview() {
+    val sampleHistory = listOf(
+        DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+        DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 0, calories = 280),
+        DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 3, calories = 120),
+        DailyEntryEntity(date = "2023-10-04", steps = 8000, waterMl = 2500, emotionIndex = 2, calories = 320),
+        DailyEntryEntity(date = "2023-10-05", steps = 10000, waterMl = 2000, emotionIndex = 1, calories = 400),
+        DailyEntryEntity(date = "2023-10-06", steps = 6000, waterMl = 1700, emotionIndex = 4, calories = 240)
+    )
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            StatsScreen(
+                todayEmotion = 0,
+                todayWaterMl = 1200,
+                waterGoalMl = 2500,
+                history = sampleHistory,
+                userPrefs = UserPreferences(firstName = "João", lastName = "Silva")
             )
         }
     }

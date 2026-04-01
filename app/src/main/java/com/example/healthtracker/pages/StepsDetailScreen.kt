@@ -3,7 +3,6 @@ package com.example.healthtracker.pages
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,6 +12,7 @@ import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.healthtracker.data.room.DailyEntryEntity
 import com.example.healthtracker.ui.theme.AppTheme
+import androidx.activity.compose.BackHandler
+import com.example.healthtracker.ui.theme.DarkColors
+import com.example.healthtracker.ui.theme.LightColors
+import com.example.healthtracker.ui.theme.LocalAppColors
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +40,9 @@ fun StepsDetailScreen(
     val progress = if (stepsGoal > 0) todaySteps.toFloat() / stepsGoal.toFloat() else 0f
     val distanceKm = todaySteps * 0.00078f
     val calories = (todaySteps * 0.04f).toInt()
+
+    // Lógica para voltar com o botão do sistema
+    BackHandler(onBack = onBack)
 
     Scaffold(
         topBar = {
@@ -74,7 +82,7 @@ fun StepsDetailScreen(
                             trackColor = c.primary.copy(alpha = 0.1f),
                             activeColor = c.primary,
                             size = 180.dp,
-                            strokeWidth = 16.dp
+                            strokeWidth = 16.dp,
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = c.primary, modifier = Modifier.size(40.dp))
@@ -133,6 +141,44 @@ fun DetailMetricCard(modifier: Modifier, title: String, value: String, icon: and
             Spacer(Modifier.height(8.dp))
             Text(title, fontSize = 12.sp, color = c.textSecondary)
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun StepsDetailScreenLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            StepsDetailScreen(
+                todaySteps = 7500,
+                stepsGoal = 10000,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+                    DailyEntryEntity(date = "2023-10-02", steps = 9000, waterMl = 1800, emotionIndex = 0, calories = 360),
+                    DailyEntryEntity(date = "2023-10-03", steps = 11000, waterMl = 1200, emotionIndex = 2, calories = 440)
+                ),
+                onBack = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun StepsDetailScreenDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            StepsDetailScreen(
+                todaySteps = 12000,
+                stepsGoal = 10000,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 8000, waterMl = 1500, emotionIndex = 1, calories = 320),
+                    DailyEntryEntity(date = "2023-10-02", steps = 15000, waterMl = 1800, emotionIndex = 4, calories = 600),
+                    DailyEntryEntity(date = "2023-10-03", steps = 2000, waterMl = 1200, emotionIndex = 3, calories = 80)
+                ),
+                onBack = {}
+            )
         }
     }
 }

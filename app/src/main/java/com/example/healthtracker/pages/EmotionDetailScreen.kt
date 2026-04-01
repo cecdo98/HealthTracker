@@ -1,5 +1,6 @@
 package com.example.healthtracker.pages
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -25,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.healthtracker.data.room.DailyEntryEntity
 import com.example.healthtracker.ui.theme.AppTheme
+import com.example.healthtracker.ui.theme.DarkColors
+import com.example.healthtracker.ui.theme.LightColors
+import com.example.healthtracker.ui.theme.LocalAppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +40,9 @@ fun EmotionDetailScreen(
 ) {
     val c = AppTheme.colors
     val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
+
+    // Lógica para voltar com o botão do sistema
+    BackHandler(onBack = onBack)
 
     // Lógica: Humor predominante
     val allEmotions = history.map { it.emotionIndex } + todayEmotion
@@ -79,7 +87,7 @@ fun EmotionDetailScreen(
                 }
             }
 
-            // Estatística Rápida - Nome alterado para evitar ambiguidade
+            // Estatística Rápida
             EmotionMetricCard(
                 modifier = Modifier.fillMaxWidth(),
                 title = "Humor mais frequente",
@@ -88,7 +96,7 @@ fun EmotionDetailScreen(
                 color = c.primary
             )
 
-            // Gráfico de Histórico - Nomes alterados para evitar ambiguidade
+            // Gráfico de Histórico
             EmotionChartCard(
                 title = "Evolução Emocional",
                 subtitle = "Humor nos últimos dias (0-4)",
@@ -104,10 +112,6 @@ fun EmotionDetailScreen(
         }
     }
 }
-
-// ────────────────────────────────────────────────────────────
-// COMPONENTES AUXILIARES (Renomeados para evitar conflitos de Overload)
-// ────────────────────────────────────────────────────────────
 
 @Composable
 private fun EmotionMetricCard(
@@ -174,6 +178,78 @@ private fun EmotionBarChart(data: List<Float>, maxValue: Float, barColor: Color)
                 topLeft = Offset(x - barWidth / 2, size.height - barHeight),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(4.dp.toPx())
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun EmotionDetailScreenLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            EmotionDetailScreen(
+                todayEmotion = 0,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+                    DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 0, calories = 280),
+                    DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 3, calories = 120)
+                ),
+                onBack = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun EmotionDetailScreenDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            EmotionDetailScreen(
+                todayEmotion = 2,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+                    DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 4, calories = 280),
+                    DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 2, calories = 120)
+                ),
+                onBack = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun EmotionDetailScreenTabletLightPreview() {
+    CompositionLocalProvider(LocalAppColors provides LightColors) {
+        MaterialTheme {
+            EmotionDetailScreen(
+                todayEmotion = 0,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+                    DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 0, calories = 280),
+                    DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 3, calories = 120)
+                ),
+                onBack = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, device = Devices.PIXEL_TABLET)
+@Composable
+fun EmotionDetailScreenTabletDarkPreview() {
+    CompositionLocalProvider(LocalAppColors provides DarkColors) {
+        MaterialTheme(colorScheme = darkColorScheme()) {
+            EmotionDetailScreen(
+                todayEmotion = 2,
+                history = listOf(
+                    DailyEntryEntity(date = "2023-10-01", steps = 5000, waterMl = 1500, emotionIndex = 1, calories = 200),
+                    DailyEntryEntity(date = "2023-10-02", steps = 7000, waterMl = 1800, emotionIndex = 4, calories = 280),
+                    DailyEntryEntity(date = "2023-10-03", steps = 3000, waterMl = 1200, emotionIndex = 2, calories = 120)
+                ),
+                onBack = {}
             )
         }
     }
