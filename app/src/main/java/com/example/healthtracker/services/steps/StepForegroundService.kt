@@ -7,19 +7,18 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.example.healthtracker.MainActivity
 import com.example.healthtracker.R
 import com.example.healthtracker.data.UserRepository
 import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.flow.first
 
 class StepForegroundService : Service(), SensorEventListener {
@@ -28,13 +27,15 @@ class StepForegroundService : Service(), SensorEventListener {
         const val CHANNEL_ID     = "step_counter_channel"
         const val NOTIFICATION_ID = 1
 
-        // Inicia o serviço
         fun start(context: Context) {
             val intent = Intent(context, StepForegroundService::class.java)
-            context.startForegroundService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
 
-        // Para o serviço
         fun stop(context: Context) {
             val intent = Intent(context, StepForegroundService::class.java)
             context.stopService(intent)
@@ -45,70 +46,91 @@ class StepForegroundService : Service(), SensorEventListener {
     private lateinit var repo: UserRepository
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var stepsAtStart   = -1
-    private var savedStepsToday = 0
-
-    // ── onCreate — chamado uma vez quando o serviço arranca ──
     override fun onCreate() {
         super.onCreate()
         repo          = UserRepository(applicationContext)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(0))
+        
+        val notification = buildNotification(0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+        
         registerStepSensor()
-        loadSavedSteps()
     }
 
-    // ── Carrega os passos já guardados no DataStore ──
-    private fun loadSavedSteps() {
-        serviceScope.launch {
-            val today = repo.checkAndResetIfNewDay()
-            val savedPrefs = repo.preferences.first()
-
-            savedStepsToday = savedPrefs.todaySteps
-            updateNotification(savedStepsToday)
-        }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        registerStepSensor()
+        return START_STICKY
     }
 
-    // ── Regista o sensor de passos ──
     private fun registerStepSensor() {
-        val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        sensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        val stepCounter = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        if (stepCounter != null) {
+            sensorManager.registerListener(this, stepCounter, SensorManager.SENSOR_DELAY_UI)
+        } else {
+            val stepDetector = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
+            sensorManager.registerListener(this, stepDetector, SensorManager.SENSOR_DELAY_UI)
         }
     }
 
-    // ── Callback do sensor ──
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
-        val totalSinceReboot = event.values[0].toInt()
+        
+        if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+            val totalSinceReboot = event.values[0].toInt()
+            
+            serviceScope.launch {
+                val today = repo.checkAndResetIfNewDay()
+                val prefs = repo.preferences.first()
 
-        serviceScope.launch {
-            val today = repo.checkAndResetIfNewDay()
-            val prefs = repo.preferences.first()
+                // Lógica de cálculo persistente
+                var sensorBase = prefs.stepsSensorBase
+                
+                // Se for a primeira vez ou o telemóvel reiniciou (total < base)
+                if (sensorBase == -1 || totalSinceReboot < sensorBase) {
+                    sensorBase = totalSinceReboot - prefs.todaySteps
+                }
 
-            if (stepsAtStart == -1 || prefs.todaySteps == 0) {
-                // Se o dia resetou, recalculamos a base
-                stepsAtStart = totalSinceReboot - prefs.todaySteps
+                val todaySteps = (totalSinceReboot - sensorBase).coerceAtLeast(0)
+                
+                // Só guarda se houver alteração para evitar escritas desnecessárias
+                if (todaySteps != prefs.todaySteps || sensorBase != prefs.stepsSensorBase) {
+                    updateNotification(todaySteps)
+                    repo.saveDailyData(
+                        date       = today,
+                        steps      = todaySteps,
+                        waterMl    = prefs.todayWaterMl,
+                        calories   = (todaySteps * 0.04f).toInt(),
+                        emotion    = prefs.todayEmotion,
+                        sensorBase = sensorBase // Guarda a base persistente
+                    )
+                }
             }
-
-            val todaySteps = (totalSinceReboot - stepsAtStart).coerceAtLeast(0)
-            updateNotification(todaySteps)
-
-            repo.saveDailyData(
-                date     = today,
-                steps    = todaySteps,
-                waterMl  = prefs.todayWaterMl,
-                calories = (todaySteps * 0.04f).toInt(),
-                emotion  = prefs.todayEmotion
-            )
+        } else if (event.sensor.type == Sensor.TYPE_STEP_DETECTOR) {
+            serviceScope.launch {
+                val today = repo.checkAndResetIfNewDay()
+                val prefs = repo.preferences.first()
+                val newSteps = prefs.todaySteps + 1
+                
+                updateNotification(newSteps)
+                repo.saveDailyData(
+                    date     = today,
+                    steps    = newSteps,
+                    waterMl  = prefs.todayWaterMl,
+                    calories = (newSteps * 0.04f).toInt(),
+                    emotion  = prefs.todayEmotion
+                )
+            }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // ── Notificação persistente ──
     private fun buildNotification(steps: Int): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -119,12 +141,12 @@ class StepForegroundService : Service(), SensorEventListener {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Health Tracker")
+            .setContentTitle("Health Tracker Ativo")
             .setContentText("Passos hoje: $steps")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)       // não pode ser dispensada pelo utilizador
-            .setSilent(true)        // sem som
+            .setOngoing(true)
+            .setSilent(true)
             .build()
     }
 
@@ -134,18 +156,16 @@ class StepForegroundService : Service(), SensorEventListener {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Contador de Passos",
-            NotificationManager.IMPORTANCE_LOW   // IMPORTANCE_LOW = sem som nem vibração
-        ).apply {
-            description = "Conta os passos em background"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID, "Contagem de Passos",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
         }
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
     }
 
-    // ── Cleanup ──
     override fun onDestroy() {
         super.onDestroy()
         sensorManager.unregisterListener(this)

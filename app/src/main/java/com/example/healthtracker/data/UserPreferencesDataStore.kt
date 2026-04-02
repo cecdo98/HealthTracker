@@ -8,49 +8,32 @@ import kotlinx.coroutines.flow.*
 
 val Context.appDataStore by preferencesDataStore(name = "health_prefs")
 
-// ─────────────────────────────────────────────
-//  MODELO DE DADOS
-// ─────────────────────────────────────────────
 data class UserPreferences(
-    // Perfil
     val firstName: String = "",
     val lastName:  String = "",
     val weight:    String = "",
     val height:    String = "",
     val age:       String = "",
-    val isMetric:  Boolean = true, // true: kg/cm, false: lbs/inches
+    val isMetric:  Boolean = true,
     val profilePictureUri: String? = null,
-
-    // Metas diárias
     val stepsGoal:   Int = 10000,
     val waterGoalMl: Int = 2500,
-
-    // Notificações
     val notifWater: Boolean = false,
     val notifSteps: Boolean = false,
     val notifMood:  Boolean = false,
-
-    // Frequências de notificação
     val waterFreq: String = "1h",
     val moodFreq:  String = "1h",
-
-    // Preferências visuais
     val darkMode:     Boolean = false,
     val googleLinked: Boolean = false,
-
-    // Dados diários
     val todayDate:     String = "",
     val todaySteps:    Int    = 0,
     val todayWaterMl:  Int    = 0,
     val todayCalories: Int    = 0,
-    val todayEmotion:  Int    = 2
+    val todayEmotion:  Int    = 2,
+    val stepsSensorBase: Int  = -1 // Nova chave para persistir a base do sensor
 )
 
-// ─────────────────────────────────────────────
-//  CHAVES
-// ─────────────────────────────────────────────
 object PrefsKeys {
-    // Perfil
     val FIRST_NAME = stringPreferencesKey("first_name")
     val LAST_NAME  = stringPreferencesKey("last_name")
     val WEIGHT     = stringPreferencesKey("weight")
@@ -58,30 +41,23 @@ object PrefsKeys {
     val AGE        = stringPreferencesKey("age")
     val IS_METRIC  = booleanPreferencesKey("is_metric")
     val PROFILE_PICTURE_URI = stringPreferencesKey("profile_picture_uri")
-    // Metas
     val STEPS_GOAL = intPreferencesKey("steps_goal")
     val WATER_GOAL = intPreferencesKey("water_goal_ml")
-    // Notificações
     val NOTIF_WATER = booleanPreferencesKey("notif_water")
     val NOTIF_STEPS = booleanPreferencesKey("notif_steps")
     val NOTIF_MOOD  = booleanPreferencesKey("notif_mood")
-    // Frequências
     val WATER_FREQ = stringPreferencesKey("water_freq")
     val MOOD_FREQ  = stringPreferencesKey("mood_freq")
-    // Preferências visuais
     val DARK_MODE     = booleanPreferencesKey("dark_mode")
     val GOOGLE_LINKED = booleanPreferencesKey("google_linked")
-    // Dados diários
     val TODAY_DATE     = stringPreferencesKey("today_date")
     val TODAY_STEPS    = intPreferencesKey("today_steps")
     val TODAY_WATER_ML = intPreferencesKey("today_water_ml")
     val TODAY_CALORIES = intPreferencesKey("today_calories")
     val TODAY_EMOTION  = intPreferencesKey("today_emotion")
+    val STEPS_SENSOR_BASE = intPreferencesKey("steps_sensor_base")
 }
 
-// ─────────────────────────────────────────────
-//  DATA STORE
-// ─────────────────────────────────────────────
 class UserPreferencesDataStore(private val context: Context) {
 
     val flow: Flow<UserPreferences> = context.appDataStore.data
@@ -108,7 +84,8 @@ class UserPreferencesDataStore(private val context: Context) {
                 todaySteps   = p[PrefsKeys.TODAY_STEPS]   ?: 0,
                 todayWaterMl = p[PrefsKeys.TODAY_WATER_ML]?: 0,
                 todayCalories= p[PrefsKeys.TODAY_CALORIES]?: 0,
-                todayEmotion = p[PrefsKeys.TODAY_EMOTION] ?: 2
+                todayEmotion = p[PrefsKeys.TODAY_EMOTION] ?: 2,
+                stepsSensorBase = p[PrefsKeys.STEPS_SENSOR_BASE] ?: -1
             )
         }
 
@@ -125,11 +102,8 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun saveProfilePicture(uri: String?) {
         context.appDataStore.edit { p ->
-            if (uri != null) {
-                p[PrefsKeys.PROFILE_PICTURE_URI] = uri
-            } else {
-                p.remove(PrefsKeys.PROFILE_PICTURE_URI)
-            }
+            if (uri != null) p[PrefsKeys.PROFILE_PICTURE_URI] = uri
+            else p.remove(PrefsKeys.PROFILE_PICTURE_URI)
         }
     }
 
@@ -153,13 +127,11 @@ class UserPreferencesDataStore(private val context: Context) {
     }
 
     suspend fun saveDarkMode(enabled: Boolean) {
-        context.appDataStore.edit { p ->
-            p[PrefsKeys.DARK_MODE] = enabled
-        }
+        context.appDataStore.edit { p -> p[PrefsKeys.DARK_MODE] = enabled }
     }
 
     suspend fun saveDailyData(
-        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int
+        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int, sensorBase: Int = -1
     ) {
         context.appDataStore.edit { p ->
             p[PrefsKeys.TODAY_DATE]     = date
@@ -167,6 +139,7 @@ class UserPreferencesDataStore(private val context: Context) {
             p[PrefsKeys.TODAY_WATER_ML] = waterMl
             p[PrefsKeys.TODAY_CALORIES] = calories
             p[PrefsKeys.TODAY_EMOTION]  = emotion
+            if (sensorBase != -1) p[PrefsKeys.STEPS_SENSOR_BASE] = sensorBase
         }
     }
 
@@ -177,6 +150,7 @@ class UserPreferencesDataStore(private val context: Context) {
             p[PrefsKeys.TODAY_WATER_ML] = 0
             p[PrefsKeys.TODAY_CALORIES] = 0
             p[PrefsKeys.TODAY_EMOTION]  = 2
+            p[PrefsKeys.STEPS_SENSOR_BASE] = -1
         }
     }
 }

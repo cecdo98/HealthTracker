@@ -14,11 +14,8 @@ import java.util.Locale
 
 class UserViewModel(application: Application) : AndroidViewModel(application) {
 
-    // O repositório já centraliza o acesso à base de dados e ao datastore
     private val repo = UserRepository(application)
 
-
-    // --- Preferências (DataStore - Dados de Hoje) ---
     val prefs: StateFlow<UserPreferences> = repo.preferences
         .stateIn(
             scope        = viewModelScope,
@@ -26,9 +23,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = UserPreferences()
         )
 
-    // --- Histórico (Room - Dados Passados) ---
-    // CORREÇÃO: Removida a linha que usava 'context' e 'healthDb' diretamente.
-    // O ViewModel agora lê corretamente do Repository.
     val historyEntries: StateFlow<List<DailyEntryEntity>> = repo.allEntries
         .stateIn(
             scope        = viewModelScope,
@@ -36,23 +30,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-    // ── Atalhos de leitura ──
-    val firstName     get() = prefs.value.firstName
-    val lastName      get() = prefs.value.lastName
-    val weight        get() = prefs.value.weight
-    val height        get() = prefs.value.height
-    val age           get() = prefs.value.age
-    val isMetric      get() = prefs.value.isMetric
-    val stepsGoal     get() = prefs.value.stepsGoal
-    val waterGoalMl   get() = prefs.value.waterGoalMl
-    val todayWaterMl  get() = prefs.value.todayWaterMl
-    val todayEmotion  get() = prefs.value.todayEmotion
-    val todayCalories get() = prefs.value.todayCalories
-    val profilePictureUri get() = prefs.value.profilePictureUri
-
-    // ──────────────────────────────────────────
-    //  PERFIL
-    // ──────────────────────────────────────────
     fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) {
         viewModelScope.launch { repo.saveProfile(firstName, lastName, weight, height, age, isMetric) }
     }
@@ -61,9 +38,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repo.saveProfilePicture(uri) }
     }
 
-    // ──────────────────────────────────────────
-    //  DEFINIÇÕES
-    // ──────────────────────────────────────────
     fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
@@ -84,11 +58,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repo.saveDarkMode(enabled) }
     }
 
-    // ──────────────────────────────────────────
-    //  ÁGUA & EMOÇÃO
-    // ──────────────────────────────────────────
     fun addWater(ml: Int) {
-        // Permitimos ultrapassar a meta para que o gráfico mostre o valor real consumido
         val newTotal = (prefs.value.todayWaterMl + ml)
         saveDailyData(waterMl = newTotal)
     }
@@ -104,12 +74,14 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         emotion:  Int = prefs.value.todayEmotion
     ) {
         viewModelScope.launch {
+            // CORREÇÃO CRÍTICA: Passar o sensorBase atual para não fazer reset aos passos!
             repo.saveDailyData(
-                date     = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
-                steps    = steps,
-                waterMl  = waterMl,
-                calories = calories,
-                emotion  = emotion
+                date       = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
+                steps      = steps,
+                waterMl    = waterMl,
+                calories   = calories,
+                emotion    = emotion,
+                sensorBase = prefs.value.stepsSensorBase 
             )
         }
     }

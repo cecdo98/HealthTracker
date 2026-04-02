@@ -39,11 +39,14 @@ class UserRepository(context: Context) {
 
     /**
      * Guarda os dados diários no DataStore e no Room.
+     * Agora passa corretamente o sensorBase para persistência.
      */
     suspend fun saveDailyData(
-        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int
+        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int, sensorBase: Int? = null
     ) {
-        dataStore.saveDailyData(date, steps, waterMl, calories, emotion)
+        // CORREÇÃO: Passar o sensorBase para o dataStore
+        dataStore.saveDailyData(date, steps, waterMl, calories, emotion, sensorBase ?: -1)
+        
         dao.upsert(
             DailyEntryEntity(
                 date         = date,
@@ -55,17 +58,11 @@ class UserRepository(context: Context) {
         )
     }
 
-    /**
-     * Verifica se o dia mudou e reseta os dados se necessário.
-     * Retorna a data atual ("yyyy-MM-dd").
-     */
     suspend fun checkAndResetIfNewDay(): String {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val prefs = preferences.first()
         
         if (prefs.todayDate.isNotEmpty() && prefs.todayDate != today) {
-            // Antes de resetar, garantimos que o dia anterior está bem guardado no Room
-            // (Embora saveDailyData já o faça incrementalmente, isto é uma segurança extra)
             dao.upsert(
                 DailyEntryEntity(
                     date         = prefs.todayDate,
@@ -75,8 +72,6 @@ class UserRepository(context: Context) {
                     emotionIndex = prefs.todayEmotion
                 )
             )
-            
-            // Reset no DataStore para o novo dia
             resetDailyData(today)
         }
         return today
