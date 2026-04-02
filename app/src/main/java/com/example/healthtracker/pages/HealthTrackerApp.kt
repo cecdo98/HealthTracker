@@ -334,7 +334,7 @@ fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color,
 @Composable
 fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}) {
     val c = AppTheme.colors
-    val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
+    val emotions = listOf("😄" to "Muito Bom", "🙂" to "Bom", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
     ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Estado Emocional", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)

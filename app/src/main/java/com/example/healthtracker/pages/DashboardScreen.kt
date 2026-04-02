@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Devices
@@ -95,6 +96,25 @@ fun StatsScreen(
         historicalValues + todayEmotion.toFloat()
     }
 
+    // Labels para os gráficos (dias abreviados + "Hoje")
+    val waterLabels = remember(selectedPeriod, history, todayWaterMl) {
+        val historicalLabels = when (selectedPeriod) {
+            0 -> emptyList()
+            1 -> history.takeLast(6).map { it.date.takeLast(5) } // ex: "10-05"
+            else -> history.takeLast(29).map { it.date.takeLast(5) }
+        }
+        historicalLabels + "Hoje"
+    }
+
+    val emotionLabels = remember(selectedPeriod, history, todayEmotion) {
+        val historicalLabels = when (selectedPeriod) {
+            0 -> emptyList()
+            1 -> history.takeLast(6).map { it.date.takeLast(5) }
+            else -> history.takeLast(29).map { it.date.takeLast(5) }
+        }
+        historicalLabels + "Hoje"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -134,13 +154,21 @@ fun StatsScreen(
         )
 
         // 3. Gráfico de Emoções
-        StatsChartCard("Histórico Emocional", "Escala 0-4", Icons.Default.Face) {
-            SimpleBarChart(emotionData, 4f, c.primary)
+        StatsChartCard(
+            title = "Histórico Emocional",
+            subtitle = "Hoje: ${todayEmotion}/4",
+            icon = Icons.Default.Face
+        ) {
+            SimpleBarChart(emotionData, 4f, c.primary, emotionLabels)
         }
 
         // 4. Gráfico de Água
-        StatsChartCard("Consumo de Água", "Hoje: ${todayWaterMl}ml", Icons.Default.LocalDrink) {
-            SimpleBarChart(waterData, waterGoalMl.toFloat().coerceAtLeast(1000f), Color(0xFF42A5F5))
+        StatsChartCard(
+            title = "Consumo de Água",
+            subtitle = "Hoje: ${todayWaterMl}ml / meta ${waterGoalMl}ml",
+            icon = Icons.Default.LocalDrink
+        ) {
+            SimpleBarChart(waterData, waterGoalMl.toFloat().coerceAtLeast(1000f), Color(0xFF42A5F5), waterLabels)
         }
 
 
@@ -193,26 +221,64 @@ fun StatsChartCard(title: String, subtitle: String, icon: androidx.compose.ui.gr
             }
             Text(subtitle, fontSize = 12.sp, color = c.textSecondary)
             Spacer(Modifier.height(24.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) { content() }
+            Box(modifier = Modifier.fillMaxWidth().height(175.dp)) { content() }
         }
     }
 }
 
 @Composable
-fun SimpleBarChart(data: List<Float>, maxValue: Float, barColor: Color) {
+fun SimpleBarChart(
+    data: List<Float>,
+    maxValue: Float,
+    barColor: Color,
+    labels: List<String> = emptyList()
+) {
+    val labelColor = AppTheme.colors.textSecondary
+    val paint = remember {
+        android.graphics.Paint().apply {
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = 28f
+            isAntiAlias = true
+        }
+    }
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         if (data.isEmpty()) return@Canvas
+
+        val labelAreaHeight = if (labels.isNotEmpty()) 36f else 0f
+        val chartHeight = size.height - labelAreaHeight
         val spacing = size.width / (data.size + 1)
         val barWidth = spacing * 0.7f
+
         data.forEachIndexed { index, value ->
             val x = spacing * (index + 1)
-            val barHeight = (value / maxValue) * size.height
+            val barHeight = (value / maxValue) * chartHeight
+
+            // Barra
             drawRoundRect(
                 color = barColor.copy(alpha = if (index == data.size - 1) 1f else 0.4f),
-                topLeft = Offset(x - barWidth / 2, size.height - barHeight),
+                topLeft = Offset(x - barWidth / 2, chartHeight - barHeight),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(4.dp.toPx())
             )
+
+            // Etiqueta em baixo (mesmo x da barra)
+            if (labels.isNotEmpty() && index < labels.size) {
+                paint.color = labelColor.copy(alpha = 0.7f).hashCode().let {
+                    android.graphics.Color.argb(
+                        (labelColor.alpha * 255).toInt(),
+                        (labelColor.red * 255).toInt(),
+                        (labelColor.green * 255).toInt(),
+                        (labelColor.blue * 255).toInt()
+                    )
+                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    labels[index],
+                    x,
+                    size.height - 4f,
+                    paint
+                )
+            }
         }
     }
 }

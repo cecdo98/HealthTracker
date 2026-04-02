@@ -1,8 +1,6 @@
 package com.example.healthtracker.pages
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,9 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -39,12 +34,10 @@ fun EmotionDetailScreen(
     onBack: () -> Unit
 ) {
     val c = AppTheme.colors
-    val emotions = listOf("😄" to "Muito Bem", "🙂" to "Bem", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
+    val emotions = listOf("😄" to "Muito Bom", "🙂" to "Bom", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
 
-    // Lógica para voltar com o botão do sistema
     BackHandler(onBack = onBack)
 
-    // Lógica: Humor predominante
     val allEmotions = history.map { it.emotionIndex } + todayEmotion
     val mostFrequentIndex = allEmotions.groupBy { it }.maxByOrNull { it.value.size }?.key ?: todayEmotion
 
@@ -97,16 +90,18 @@ fun EmotionDetailScreen(
             )
 
             // Gráfico de Histórico
-            EmotionChartCard(
+            StatsChartCard(
                 title = "Evolução Emocional",
                 subtitle = "Humor nos últimos dias (0-4)",
                 icon = Icons.Default.Face
             ) {
                 val emotionHistory = history.takeLast(6).map { it.emotionIndex.toFloat() } + todayEmotion.toFloat()
-                EmotionBarChart(
+                val emotionLabels = history.takeLast(6).map { it.date.takeLast(5) } + "Hoje"
+                SimpleBarChart(
                     data = emotionHistory,
                     maxValue = 4f,
-                    barColor = c.primary
+                    barColor = c.primary,
+                    labels = emotionLabels
                 )
             }
         }
@@ -132,53 +127,6 @@ private fun EmotionMetricCard(
             Spacer(Modifier.height(8.dp))
             Text(title, fontSize = 12.sp, color = c.textSecondary)
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
-        }
-    }
-}
-
-@Composable
-private fun EmotionChartCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    content: @Composable () -> Unit
-) {
-    val c = AppTheme.colors
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = c.card)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = c.primary, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
-            }
-            Text(subtitle, fontSize = 12.sp, color = c.textSecondary)
-            Spacer(Modifier.height(24.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
-                content()
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmotionBarChart(data: List<Float>, maxValue: Float, barColor: Color) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        if (data.isEmpty()) return@Canvas
-        val spacing = size.width / (data.size + 1)
-        val barWidth = spacing * 0.7f
-        data.forEachIndexed { index, value ->
-            val x = spacing * (index + 1)
-            val barHeight = (value / maxValue) * size.height
-            drawRoundRect(
-                color = barColor.copy(alpha = if (index == data.size - 1) 1f else 0.4f),
-                topLeft = Offset(x - barWidth / 2, size.height - barHeight),
-                size = Size(barWidth, barHeight),
-                cornerRadius = CornerRadius(4.dp.toPx())
-            )
         }
     }
 }

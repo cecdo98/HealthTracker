@@ -118,10 +118,12 @@ fun StepsDetailScreen(
                 icon = Icons.Default.Timeline
             ) {
                 val stepHistory = history.takeLast(6).map { it.steps.toFloat() } + todaySteps.toFloat()
+                val stepLabels = history.takeLast(6).map { it.date.takeLast(5) } + "Hoje"
                 SimpleBarChart(
                     data = stepHistory,
                     maxValue = stepsGoal.toFloat().coerceAtLeast(10000f),
-                    barColor = c.primary
+                    barColor = c.primary,
+                    labels = stepLabels
                 )
             }
         }

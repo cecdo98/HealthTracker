@@ -107,10 +107,12 @@ fun WaterDetailScreen(
                 icon = Icons.Default.LocalDrink
             ) {
                 val waterHistory = history.takeLast(6).map { it.waterMl.toFloat() } + todayWaterMl.toFloat()
+                val waterLabels = history.takeLast(6).map { it.date.takeLast(5) } + "Hoje"
                 SimpleBarChart(
                     data = waterHistory,
                     maxValue = waterGoalMl.toFloat().coerceAtLeast(2000f),
-                    barColor = Color(0xFF42A5F5)
+                    barColor = Color(0xFF42A5F5),
+                    labels = waterLabels
                 )
             }
         }
