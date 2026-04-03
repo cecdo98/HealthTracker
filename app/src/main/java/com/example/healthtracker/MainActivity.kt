@@ -15,6 +15,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthtracker.pages.HealthTrackerApp
 import com.example.healthtracker.services.steps.StepForegroundService
 import com.example.healthtracker.services.user.UserViewModel
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -26,34 +29,38 @@ class MainActivity : ComponentActivity() {
             val userViewModel: UserViewModel = viewModel()
             val prefs by userViewModel.prefs.collectAsState()
 
-            // Controla o serviço de passos com base na preferência do utilizador
-            LaunchedEffect(prefs.notifSteps) {
-                if (prefs.notifSteps) {
+            // O serviço agora tenta iniciar sempre para garantir a contagem.
+            // A lógica de "esconder" a notificação será tratada dentro do serviço.
+            LaunchedEffect(Unit) {
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) {
                     StepForegroundService.start(this@MainActivity)
-                } else {
-                    StepForegroundService.stop(this@MainActivity)
                 }
             }
 
-            RequestPermissions()
+            RequestPermissions {
+                // Ao aceitar as permissões, iniciamos o serviço imediatamente
+                StepForegroundService.start(this@MainActivity)
+            }
+            
             HealthTrackerApp(userViewModel, windowSizeClass)
         }
     }
 }
 
 @Composable
-fun RequestPermissions() {
+fun RequestPermissions(onGranted: () -> Unit = {}) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val activityGranted = permissions[android.Manifest.permission.ACTIVITY_RECOGNITION] ?: false
-        val notifGranted    = permissions[android.Manifest.permission.POST_NOTIFICATIONS]   ?: false
+        val activityGranted = permissions[Manifest.permission.ACTIVITY_RECOGNITION] ?: false
+        if (activityGranted) onGranted()
     }
 
     LaunchedEffect(Unit) {
         launcher.launch(arrayOf(
-            android.Manifest.permission.ACTIVITY_RECOGNITION,
-            android.Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.ACTIVITY_RECOGNITION,
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.SCHEDULE_EXACT_ALARM
         ))
     }
 }

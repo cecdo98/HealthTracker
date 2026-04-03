@@ -101,15 +101,15 @@ fun SettingScreen(
         stepsGoal        = prefs.stepsGoal,
         waterGoalMl      = prefs.waterGoalMl,
         notifWater       = prefs.notifWater,
-        notifSteps       = prefs.notifSteps,
         notifMood        = prefs.notifMood,
         waterFreq        = prefs.waterFreq,
         moodFreq         = prefs.moodFreq,
         googleLinked     = prefs.googleLinked,
         isDarkMode       = isDarkMode,
         onDarkModeToggle = onDarkModeToggle,
-        onSave           = { steps, water, nw, ns, nm, wf, mf, gl ->
-            viewModel.saveSettings(steps, water, nw, ns, nm, wf, mf, isDarkMode, gl)
+        onSave           = { steps, water, nw, nm, wf, mf, gl ->
+            // Passamos ns (notifSteps) fixo como false ou mantemos o valor atual do DataStore
+            viewModel.saveSettings(steps, water, nw, prefs.notifSteps, nm, wf, mf, gl)
         }
     )
 }
@@ -123,14 +123,13 @@ fun SettingScreenContent(
     stepsGoal: Int = 10000,
     waterGoalMl: Int = 2500,
     notifWater: Boolean = false,
-    notifSteps: Boolean = false,
     notifMood: Boolean = false,
     waterFreq: String = "1h",
     moodFreq: String = "1h",
     googleLinked: Boolean = false,
     isDarkMode: Boolean = false,
     onDarkModeToggle: (Boolean) -> Unit = {},
-    onSave: (Int, Int, Boolean, Boolean, Boolean, String, String, Boolean) -> Unit = { _,_,_,_,_,_,_,_ -> }
+    onSave: (Int, Int, Boolean, Boolean, String, String, Boolean) -> Unit = { _,_,_,_,_,_,_ -> }
 ) {
     val c       = AppTheme.colors
     val context = LocalContext.current
@@ -139,7 +138,6 @@ fun SettingScreenContent(
     var waterGoalText    by remember(waterGoalMl)  { mutableStateOf(waterGoalMl.toString()) }
     var googleState      by remember(googleLinked) { mutableStateOf(googleLinked) }
     var notifWaterState  by remember(notifWater)   { mutableStateOf(notifWater) }
-    var notifStepsState  by remember(notifSteps)   { mutableStateOf(notifSteps) }
     var notifMoodState   by remember(notifMood)    { mutableStateOf(notifMood) }
     var waterFreqState   by remember(waterFreq)    { mutableStateOf(waterFreq) }
     var moodFreqState    by remember(moodFreq)     { mutableStateOf(moodFreq) }
@@ -244,7 +242,6 @@ fun SettingScreenContent(
                             steps,
                             water,
                             notifWaterState,
-                            notifStepsState,
                             notifMoodState,
                             waterFreqState,
                             moodFreqState,
@@ -292,27 +289,6 @@ fun SettingScreenContent(
 
                 Spacer(Modifier.height(8.dp))
 
-                // ───────── PASSOS ─────────
-                NotifRowSteps(notifStepsState, c) {
-                    notifStepsState = it
-                    settingsSaved = false
-
-                    val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
-                    val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                    onSave(
-                        steps, water,
-                        notifWaterState,
-                        notifStepsState,
-                        notifMoodState,
-                        waterFreqState,
-                        moodFreqState,
-                        googleState
-                    )
-                }
-
-                HorizontalDivider(color = c.divider, modifier = Modifier.padding(vertical = 6.dp))
-
                 // ───────── HUMOR ─────────
                 NotifRowWithFreq(
                     "😊 Humor",
@@ -343,7 +319,6 @@ fun SettingScreenContent(
                         onSave(
                             steps, water,
                             notifWaterState,
-                            notifStepsState,
                             notifMoodState,
                             waterFreqState,
                             moodFreqState,
@@ -371,7 +346,6 @@ fun SettingScreenContent(
                         onSave(
                             steps, water,
                             notifWaterState,
-                            notifStepsState,
                             notifMoodState,
                             waterFreqState,
                             moodFreqState,
@@ -412,7 +386,6 @@ fun SettingScreenContent(
                         onSave(
                             steps, water,
                             notifWaterState,
-                            notifStepsState,
                             notifMoodState,
                             waterFreqState,
                             moodFreqState,
@@ -440,7 +413,6 @@ fun SettingScreenContent(
                         onSave(
                             steps, water,
                             notifWaterState,
-                            notifStepsState,
                             notifMoodState,
                             waterFreqState,
                             moodFreqState,
@@ -497,17 +469,6 @@ private fun NotifRowWithFreq(label: String, description: String, checked: Boolea
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun NotifRowSteps(checked: Boolean, c: com.example.healthtracker.ui.theme.AppColors, onToggle: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("🚶 Passos", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
-            Text(if (checked) "Contador visível na barra de notificações" else "Ativa para ver passos na barra de notificações", fontSize = 11.sp, color = c.textSecondary)
-        }
-        Switch(checked = checked, onCheckedChange = onToggle, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
     }
 }
 
