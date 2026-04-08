@@ -2,6 +2,7 @@ package com.example.healthtracker.data
 
 import android.content.Context
 import com.example.healthtracker.data.room.AppDatabase
+import com.example.healthtracker.data.room.DailyEntryDao
 import com.example.healthtracker.data.room.DailyEntryEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -12,17 +13,22 @@ import java.util.Locale
 class UserRepository(context: Context) {
 
     private val dataStore = UserPreferencesDataStore(context)
-    private val dao       = AppDatabase.getInstance(context).dailyEntryDao()
-
-    val allEntries: Flow<List<DailyEntryEntity>> = AppDatabase.getInstance(context).dailyEntryDao().getAllEntries()
+    private val dao: DailyEntryDao = AppDatabase.getInstance(context).dailyEntryDao()
 
     val preferences: Flow<UserPreferences> = dataStore.flow
+    val allEntries: Flow<List<DailyEntryEntity>> = dao.getAllEntries()
 
-    suspend fun saveProfile(firstName: String, lastName: String, weight: String, height: String, age: String, isMetric: Boolean) =
-        dataStore.saveProfile(firstName, lastName, weight, height, age, isMetric)
+    // ── Perfil ────────────────────────────────────────────────────────────────
 
-    suspend fun saveProfilePicture(uri: String?) =
-        dataStore.saveProfilePicture(uri)
+    suspend fun saveProfile(
+        firstName: String, lastName: String,
+        weight: String, height: String,
+        age: String, isMetric: Boolean
+    ) = dataStore.saveProfile(firstName, lastName, weight, height, age, isMetric)
+
+    suspend fun saveProfilePicture(uri: String?) = dataStore.saveProfilePicture(uri)
+
+    // ── Definições ────────────────────────────────────────────────────────────
 
     suspend fun saveSettings(
         stepsGoal: Int, waterGoalMl: Int,
@@ -30,23 +36,26 @@ class UserRepository(context: Context) {
         waterFreq: String, moodFreq: String,
         darkMode: Boolean, googleLinked: Boolean
     ) = dataStore.saveSettings(
-        stepsGoal, waterGoalMl, notifWater, notifSteps, notifMood,
-        waterFreq, moodFreq, darkMode, googleLinked
+        stepsGoal, waterGoalMl,
+        notifWater, notifSteps, notifMood,
+        waterFreq, moodFreq,
+        darkMode, googleLinked
     )
 
-    suspend fun saveDarkMode(enabled: Boolean) =
-        dataStore.saveDarkMode(enabled)
+    suspend fun saveDarkMode(enabled: Boolean) = dataStore.saveDarkMode(enabled)
 
-    /**
-     * Guarda os dados diários no DataStore e no Room.
-     * Agora passa corretamente o sensorBase para persistência.
-     */
+    // ── Dados diários ─────────────────────────────────────────────────────────
+
     suspend fun saveDailyData(
-        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int, sensorBase: Int? = null
+        date: String, steps: Int, waterMl: Int,
+        calories: Int, emotion: Int, sensorBase: Int = -1
+    ) = dataStore.saveDailyData(date, steps, waterMl, calories, emotion, sensorBase)
+
+    suspend fun resetDailyData(newDate: String) = dataStore.resetDailyData(newDate)
+
+    suspend fun saveEntryToHistory(
+        date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int
     ) {
-        // CORREÇÃO: Passar o sensorBase para o dataStore
-        dataStore.saveDailyData(date, steps, waterMl, calories, emotion, sensorBase ?: -1)
-        
         dao.upsert(
             DailyEntryEntity(
                 date         = date,
@@ -58,30 +67,40 @@ class UserRepository(context: Context) {
         )
     }
 
-    suspend fun checkAndResetIfNewDay(): String {
+    /**
+     * Verifica se o dia mudou. Se sim, guarda o histórico, reseta, e devolve
+     * prefs limpas (zeros). Se não mudou, devolve as prefs atuais.
+     *
+     * IMPORTANTE: devolve sempre as prefs "frescas" prontas a usar —
+     * nunca chames preferences.first() depois disto ou podes apanhar cache velha.
+     */
+    suspend fun checkAndResetIfNewDay(): Pair<String, UserPreferences> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val prefs = preferences.first()
-        
-        if (prefs.todayDate.isNotEmpty() && prefs.todayDate != today) {
-            dao.upsert(
-                DailyEntryEntity(
-                    date         = prefs.todayDate,
-                    steps        = prefs.todaySteps,
-                    waterMl      = prefs.todayWaterMl,
-                    calories     = prefs.todayCalories,
-                    emotionIndex = prefs.todayEmotion
+
+        return when {
+            prefs.todayDate.isNotEmpty() && prefs.todayDate != today -> {
+                // Guarda o dia anterior no histórico
+                saveEntryToHistory(
+                    date     = prefs.todayDate,
+                    steps    = prefs.todaySteps,
+                    waterMl  = prefs.todayWaterMl,
+                    calories = prefs.todayCalories,
+                    emotion  = prefs.todayEmotion
                 )
-            )
-            resetDailyData(today)
+                // Reseta e devolve prefs zeradas — sem ir buscar ao DataStore outra vez
+                resetDailyData(today)
+                Pair(today, UserPreferences(todayDate = today))
+            }
+            prefs.todayDate.isEmpty() -> {
+                // Primeira execução — inicializa
+                dataStore.saveDailyData(today, 0, 0, 0, 2)
+                Pair(today, UserPreferences(todayDate = today))
+            }
+            else -> {
+                // Mesmo dia — devolve as prefs atuais sem tocar em nada
+                Pair(today, prefs)
+            }
         }
-        return today
     }
-
-    suspend fun resetDailyData(newDate: String) =
-        dataStore.resetDailyData(newDate)
-
-    suspend fun saveDarkModeSync(enabled: Boolean) = dataStore.saveDarkMode(enabled)
-
-    fun getToday(date: String) = dao.getByDate(date)
-    fun getLast30Days()        = dao.getLast30Days()
 }

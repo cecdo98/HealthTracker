@@ -1,5 +1,7 @@
 package com.example.healthtracker
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,17 +9,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthtracker.pages.HealthTrackerApp
 import com.example.healthtracker.services.steps.StepForegroundService
 import com.example.healthtracker.services.user.UserViewModel
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -27,21 +24,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
             val userViewModel: UserViewModel = viewModel()
-            val prefs by userViewModel.prefs.collectAsState()
 
-            // O serviço agora tenta iniciar sempre para garantir a contagem.
-            // A lógica de "esconder" a notificação será tratada dentro do serviço.
+            // Inicia o serviço se a permissão já foi concedida anteriormente
             LaunchedEffect(Unit) {
-                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED) {
+                if (ContextCompat.checkSelfPermission(
+                        this@MainActivity,
+                        Manifest.permission.ACTIVITY_RECOGNITION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
                     StepForegroundService.start(this@MainActivity)
                 }
             }
 
+            // Pede permissões — se concedidas, inicia o serviço
             RequestPermissions {
-                // Ao aceitar as permissões, iniciamos o serviço imediatamente
                 StepForegroundService.start(this@MainActivity)
             }
-            
+
             HealthTrackerApp(userViewModel, windowSizeClass)
         }
     }
@@ -57,10 +56,12 @@ fun RequestPermissions(onGranted: () -> Unit = {}) {
     }
 
     LaunchedEffect(Unit) {
-        launcher.launch(arrayOf(
-            Manifest.permission.ACTIVITY_RECOGNITION,
-            Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.SCHEDULE_EXACT_ALARM
-        ))
+        launcher.launch(
+            arrayOf(
+                Manifest.permission.ACTIVITY_RECOGNITION,
+                Manifest.permission.POST_NOTIFICATIONS,
+                Manifest.permission.SCHEDULE_EXACT_ALARM
+            )
+        )
     }
 }

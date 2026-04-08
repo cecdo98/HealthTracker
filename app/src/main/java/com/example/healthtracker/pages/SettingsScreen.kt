@@ -108,8 +108,18 @@ fun SettingScreen(
         isDarkMode       = isDarkMode,
         onDarkModeToggle = onDarkModeToggle,
         onSave           = { steps, water, nw, nm, wf, mf, gl ->
-            // Passamos ns (notifSteps) fixo como false ou mantemos o valor atual do DataStore
-            viewModel.saveSettings(steps, water, nw, prefs.notifSteps, nm, wf, mf, gl)
+            // Passamos todos os parâmetros necessários para o ViewModel
+            viewModel.saveSettings(
+                stepsGoal = steps,
+                waterGoalMl = water,
+                notifWater = nw,
+                notifSteps = prefs.notifSteps,
+                notifMood = nm,
+                waterFreq = wf,
+                moodFreq = mf,
+                darkMode = isDarkMode,
+                googleLinked = gl
+            )
         }
     )
 }

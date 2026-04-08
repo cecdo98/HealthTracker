@@ -92,4 +92,5 @@ dependencies {
     // notificações
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+
 }
