@@ -32,29 +32,21 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     init {
-        // Verifica ao abrir a app (fallback se o Worker não correu)
-        viewModelScope.launch {
-            repo.checkAndResetIfNewDay()
-        }
+        viewModelScope.launch { repo.checkAndResetIfNewDay() }
 
-        // Agenda o Worker para quando a app está fechada
         MidnightResetWorker.scheduleMidnightReset(application)
 
-        // Watcher: recalcula a cada iteração quanto falta para a meia-noite
-        // Isto garante o reset quando a app está aberta, mesmo vários dias seguidos
         viewModelScope.launch {
             while (true) {
                 val ms = msUntilMidnight()
                 Log.d("UserViewModel", "Watcher: próximo reset em ${ms / 1000 / 60} min")
-                delay(ms + 1_000L) // +1s de margem para o relógio já ter avançado o dia
+                delay(ms + 1_000L)
                 Log.d("UserViewModel", "Watcher: a executar reset de meia-noite")
                 repo.checkAndResetIfNewDay()
-                // O loop volta ao início e recalcula o delay para a meia-noite SEGUINTE
             }
         }
     }
 
-    /** Calcula os milissegundos que faltam até às 00:00:00 do dia seguinte */
     private fun msUntilMidnight(): Long {
         val now = Calendar.getInstance()
         val midnight = Calendar.getInstance().apply {
@@ -89,19 +81,20 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
         waterFreq: String, moodFreq: String,
-        darkMode: Boolean, googleLinked: Boolean
+        darkMode: Boolean, animationsEnabled: Boolean, hapticEnabled: Boolean
     ) {
         viewModelScope.launch {
             repo.saveSettings(
-                stepsGoal    = stepsGoal,
-                waterGoalMl  = waterGoalMl,
-                notifWater   = notifWater,
-                notifSteps   = notifSteps,
-                notifMood    = notifMood,
-                waterFreq    = waterFreq,
-                moodFreq     = moodFreq,
-                darkMode     = darkMode,
-                googleLinked = googleLinked
+                stepsGoal         = stepsGoal,
+                waterGoalMl       = waterGoalMl,
+                notifWater        = notifWater,
+                notifSteps        = notifSteps,
+                notifMood         = notifMood,
+                waterFreq         = waterFreq,
+                moodFreq          = moodFreq,
+                darkMode          = darkMode,
+                animationsEnabled = animationsEnabled,
+                hapticEnabled     = hapticEnabled
             )
         }
     }
@@ -110,28 +103,33 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repo.saveDarkMode(enabled) }
     }
 
+    fun saveHapticEnabled(enabled: Boolean) {
+        viewModelScope.launch { repo.saveHapticEnabled(enabled) }
+    }
+
+    fun saveAnimationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { repo.saveAnimationsEnabled(enabled) }
+    }
+
     // ── Dados diários ─────────────────────────────────────────────────────────
 
+    /**
+     * Adiciona água de forma atómica — reseta o dia e adiciona num único edit{},
+     * eliminando qualquer race condition entre o reset e a escrita.
+     */
     fun addWater(ml: Int) {
         viewModelScope.launch {
-            val (date, currentPrefs) = repo.checkAndResetIfNewDay()
-            val newTotal = currentPrefs.todayWaterMl + ml
-            repo.saveDailyData(
-                date, currentPrefs.todaySteps, newTotal,
-                currentPrefs.todayCalories, currentPrefs.todayEmotion,
-                currentPrefs.stepsSensorBase
-            )
+            repo.addWaterAtomic(ml)
         }
     }
 
+    /**
+     * Define o humor de forma atómica — reseta o dia e escreve o humor num único edit{},
+     * eliminando qualquer race condition entre o reset e a escrita.
+     */
     fun setEmotion(index: Int) {
         viewModelScope.launch {
-            val (date, currentPrefs) = repo.checkAndResetIfNewDay()
-            repo.saveDailyData(
-                date, currentPrefs.todaySteps, currentPrefs.todayWaterMl,
-                currentPrefs.todayCalories, index,
-                currentPrefs.stepsSensorBase
-            )
+            repo.setEmotionAtomic(index)
         }
     }
 }

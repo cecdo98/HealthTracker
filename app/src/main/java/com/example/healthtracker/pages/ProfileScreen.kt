@@ -1,6 +1,8 @@
 package com.example.healthtracker.pages
 
+import android.content.Intent
 import android.net.Uri
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -10,9 +12,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
@@ -30,6 +35,7 @@ import com.example.healthtracker.ui.theme.AppTheme
 import com.example.healthtracker.ui.theme.DarkColors
 import com.example.healthtracker.ui.theme.LightColors
 import com.example.healthtracker.ui.theme.LocalAppColors
+import java.util.Locale
 
 // ─────────────────────────────────────────────
 //  WRAPPER
@@ -77,6 +83,41 @@ fun ProfileScreenContent(
     var ageField       by remember(age)       { mutableStateOf(age)       }
     var isMetricState  by remember(isMetric)  { mutableStateOf(isMetric)  }
     var saved          by remember { mutableStateOf(false) }
+
+    // Estado para saber qual campo está a ser preenchido por voz
+    var activeFieldForSpeech by remember { mutableStateOf<String?>(null) }
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0) ?: ""
+                if (spokenText.isNotEmpty()) {
+                    when (activeFieldForSpeech) {
+                        "firstName" -> { firstNameField = spokenText; saved = false }
+                        "lastName" -> { lastNameField = spokenText; saved = false }
+                        "weight" -> { weightField = spokenText.filter { it.isDigit() || it == '.' || it == ',' }.replace(',', '.'); saved = false }
+                        "height" -> { heightField = spokenText.filter { it.isDigit() || it == '.' || it == ',' }.replace(',', '.'); saved = false }
+                        "age" -> { ageField = spokenText.filter { it.isDigit() }; saved = false }
+                    }
+                }
+            }
+        }
+    )
+
+    val startVoiceInput = { fieldName: String ->
+        activeFieldForSpeech = fieldName
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Fale os dados...")
+        }
+        try {
+            speechLauncher.launch(intent)
+        } catch (e: Exception) {
+            // Caso o dispositivo não suporte reconhecimento de voz
+        }
+    }
 
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -174,19 +215,19 @@ fun ProfileScreenContent(
                         }
                         Spacer(Modifier.width(8.dp))
                         Text(text = when {
-                                bmiValue < 18.5 -> "Precisa de ganhar peso de forma saudável."
-                                bmiValue < 25.0 -> "Excelente! Continue assim."
-                                bmiValue < 30.0 -> "Atenção à alimentação e exercício."
-                                else -> "Considere consultar um especialista."
-                            }, fontSize = 11.sp, color = c.textSecondary)
+                            bmiValue < 18.5 -> "Precisa de ganhar peso de forma saudável."
+                            bmiValue < 25.0 -> "Excelente! Continue assim."
+                            bmiValue < 30.0 -> "Atenção à alimentação e exercício."
+                            else -> "Considere consultar um especialista."
+                        }, fontSize = 11.sp, color = c.textSecondary)
                     }
                 }
             }
         }
 
-        ProfileTextField("PRIMEIRO NOME", firstNameField, c, { firstNameField = it; saved = false })
+        ProfileTextField("PRIMEIRO NOME", firstNameField, c, { firstNameField = it; saved = false }, onMicClick = { startVoiceInput("firstName") })
         Spacer(Modifier.height(12.dp))
-        ProfileTextField("ÚLTIMO NOME", lastNameField, c, { lastNameField = it; saved = false })
+        ProfileTextField("ÚLTIMO NOME", lastNameField, c, { lastNameField = it; saved = false }, onMicClick = { startVoiceInput("lastName") })
         Spacer(Modifier.height(24.dp))
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             SegmentedButton(selected = isMetricState, onClick = { isMetricState = true; saved = false }, shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)) {
@@ -198,14 +239,14 @@ fun ProfileScreenContent(
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(modifier = Modifier.weight(1f)) {
-                ProfileTextField(label = if (isMetricState) "PESO (kg)" else "PESO (lbs)", value = weightField, c = c, onValueChange = { weightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "kg" else "lbs")
+                ProfileTextField(label = if (isMetricState) "PESO (kg)" else "PESO (lbs)", value = weightField, c = c, onValueChange = { weightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "kg" else "lbs", onMicClick = { startVoiceInput("weight") })
             }
             Box(modifier = Modifier.weight(1f)) {
-                ProfileTextField(label = if (isMetricState) "ALTURA (cm)" else "ALTURA (in)", value = heightField, c = c, onValueChange = { heightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "cm" else "in")
+                ProfileTextField(label = if (isMetricState) "ALTURA (cm)" else "ALTURA (in)", value = heightField, c = c, onValueChange = { heightField = it; saved = false }, keyboardType = KeyboardType.Number, suffix = if (isMetricState) "cm" else "in", onMicClick = { startVoiceInput("height") })
             }
         }
         Spacer(Modifier.height(12.dp))
-        ProfileTextField("IDADE", ageField, c, { ageField = it; saved = false }, keyboardType = KeyboardType.Number)
+        ProfileTextField("IDADE", ageField, c, { ageField = it; saved = false }, keyboardType = KeyboardType.Number, onMicClick = { startVoiceInput("age") })
         Spacer(Modifier.height(28.dp))
         Button(
             onClick = { onSave(firstNameField, lastNameField, weightField, heightField, ageField, isMetricState); saved = true },
@@ -227,11 +268,46 @@ fun ProfileScreenContent(
 //  CAMPO DE TEXTO
 // ─────────────────────────────────────────────
 @Composable
-fun ProfileTextField(label: String, value: String, c: com.example.healthtracker.ui.theme.AppColors, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text, suffix: String = "") {
+fun ProfileTextField(
+    label: String,
+    value: String,
+    c: com.example.healthtracker.ui.theme.AppColors,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    suffix: String = "",
+    onMicClick: (() -> Unit)? = null
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = c.textSecondary, letterSpacing = 0.8.sp)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), singleLine = true, suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary) }} else null, keyboardOptions = KeyboardOptions(keyboardType = keyboardType), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = c.inputBorderFocused, unfocusedBorderColor = c.inputBorder, focusedContainerColor = c.card, unfocusedContainerColor = c.card, focusedTextColor = c.textPrimary, unfocusedTextColor = c.textPrimary), shape = RoundedCornerShape(8.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            trailingIcon = if (onMicClick != null) {
+                {
+                    IconButton(onClick = onMicClick) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Entrada por voz",
+                            tint = c.primary
+                        )
+                    }
+                }
+            } else null,
+            suffix = if (suffix.isNotEmpty()) {{ Text(suffix, color = c.textSecondary) }} else null,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = c.inputBorderFocused,
+                unfocusedBorderColor = c.inputBorder,
+                focusedContainerColor = c.card,
+                unfocusedContainerColor = c.card,
+                focusedTextColor = c.textPrimary,
+                unfocusedTextColor = c.textPrimary
+            ),
+            shape = RoundedCornerShape(8.dp)
+        )
     }
 }
 

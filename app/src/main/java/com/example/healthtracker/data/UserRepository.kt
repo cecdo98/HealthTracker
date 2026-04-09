@@ -18,6 +18,8 @@ class UserRepository(context: Context) {
     val preferences: Flow<UserPreferences> = dataStore.flow
     val allEntries: Flow<List<DailyEntryEntity>> = dao.getAllEntries()
 
+    private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
     // ── Perfil ────────────────────────────────────────────────────────────────
 
     suspend fun saveProfile(
@@ -34,15 +36,17 @@ class UserRepository(context: Context) {
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
         waterFreq: String, moodFreq: String,
-        darkMode: Boolean, googleLinked: Boolean
+        darkMode: Boolean, animationsEnabled: Boolean, hapticEnabled: Boolean
     ) = dataStore.saveSettings(
         stepsGoal, waterGoalMl,
         notifWater, notifSteps, notifMood,
         waterFreq, moodFreq,
-        darkMode, googleLinked
+        darkMode, animationsEnabled, hapticEnabled
     )
 
     suspend fun saveDarkMode(enabled: Boolean) = dataStore.saveDarkMode(enabled)
+    suspend fun saveHapticEnabled(enabled: Boolean) = dataStore.saveHapticEnabled(enabled)
+    suspend fun saveAnimationsEnabled(enabled: Boolean) = dataStore.saveAnimationsEnabled(enabled)
 
     // ── Dados diários ─────────────────────────────────────────────────────────
 
@@ -68,19 +72,15 @@ class UserRepository(context: Context) {
     }
 
     /**
-     * Verifica se o dia mudou. Se sim, guarda o histórico, reseta, e devolve
-     * prefs limpas (zeros). Se não mudou, devolve as prefs atuais.
-     *
-     * IMPORTANTE: devolve sempre as prefs "frescas" prontas a usar —
-     * nunca chames preferences.first() depois disto ou podes apanhar cache velha.
+     * Verifica se o dia mudou e reseta se necessário.
+     * Usado no arranque da app e no watcher de meia-noite.
      */
-    suspend fun checkAndResetIfNewDay(): Pair<String, UserPreferences> {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    suspend fun checkAndResetIfNewDay() {
+        val today = today()
         val prefs = preferences.first()
 
-        return when {
+        when {
             prefs.todayDate.isNotEmpty() && prefs.todayDate != today -> {
-                // Guarda o dia anterior no histórico
                 saveEntryToHistory(
                     date     = prefs.todayDate,
                     steps    = prefs.todaySteps,
@@ -88,19 +88,59 @@ class UserRepository(context: Context) {
                     calories = prefs.todayCalories,
                     emotion  = prefs.todayEmotion
                 )
-                // Reseta e devolve prefs zeradas — sem ir buscar ao DataStore outra vez
                 resetDailyData(today)
-                Pair(today, UserPreferences(todayDate = today))
             }
             prefs.todayDate.isEmpty() -> {
-                // Primeira execução — inicializa
                 dataStore.saveDailyData(today, 0, 0, 0, 2)
-                Pair(today, UserPreferences(todayDate = today))
-            }
-            else -> {
-                // Mesmo dia — devolve as prefs atuais sem tocar em nada
-                Pair(today, prefs)
             }
         }
+    }
+
+    /**
+     * Adiciona água de forma atómica — o reset do dia e a adição são
+     * uma operação única no DataStore, sem risco de race condition.
+     * Se for novo dia, guarda o histórico de ontem antes de resetar.
+     */
+    suspend fun addWaterAtomic(ml: Int) {
+        val today = today()
+        val prefs = preferences.first()
+
+        // Se é novo dia, guarda o histórico de ontem primeiro
+        if (prefs.todayDate.isNotEmpty() && prefs.todayDate != today) {
+            saveEntryToHistory(
+                date     = prefs.todayDate,
+                steps    = prefs.todaySteps,
+                waterMl  = prefs.todayWaterMl,
+                calories = prefs.todayCalories,
+                emotion  = prefs.todayEmotion
+            )
+        }
+
+        // O atomicAddWater verifica a data internamente e reseta+adiciona num único edit{}
+        dataStore.atomicAddWater(today, ml)
+    }
+
+    /**
+     * Define o humor de forma atómica — o reset do dia e a escrita do humor são
+     * uma operação única no DataStore, sem risco de race condition.
+     * Se for novo dia, guarda o histórico de ontem antes de resetar.
+     */
+    suspend fun setEmotionAtomic(emotion: Int) {
+        val today = today()
+        val prefs = preferences.first()
+
+        // Se é novo dia, guarda o histórico de ontem primeiro
+        if (prefs.todayDate.isNotEmpty() && prefs.todayDate != today) {
+            saveEntryToHistory(
+                date     = prefs.todayDate,
+                steps    = prefs.todaySteps,
+                waterMl  = prefs.todayWaterMl,
+                calories = prefs.todayCalories,
+                emotion  = prefs.todayEmotion
+            )
+        }
+
+        // O atomicSetEmotion verifica a data internamente e reseta+escreve num único edit{}
+        dataStore.atomicSetEmotion(today, emotion)
     }
 }

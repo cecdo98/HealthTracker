@@ -24,13 +24,14 @@ data class UserPreferences(
     val waterFreq: String = "1h",
     val moodFreq:  String = "1h",
     val darkMode:     Boolean = false,
-    val googleLinked: Boolean = false,
+    val animationsEnabled: Boolean = true,
+    val hapticEnabled:     Boolean = true,
     val todayDate:     String = "",
     val todaySteps:    Int    = 0,
     val todayWaterMl:  Int    = 0,
     val todayCalories: Int    = 0,
     val todayEmotion:  Int    = 2,
-    val stepsSensorBase: Int  = -1 // Nova chave para persistir a base do sensor
+    val stepsSensorBase: Int  = -1
 )
 
 object PrefsKeys {
@@ -48,8 +49,9 @@ object PrefsKeys {
     val NOTIF_MOOD  = booleanPreferencesKey("notif_mood")
     val WATER_FREQ = stringPreferencesKey("water_freq")
     val MOOD_FREQ  = stringPreferencesKey("mood_freq")
-    val DARK_MODE     = booleanPreferencesKey("dark_mode")
-    val GOOGLE_LINKED = booleanPreferencesKey("google_linked")
+    val DARK_MODE          = booleanPreferencesKey("dark_mode")
+    val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
+    val HAPTIC_ENABLED     = booleanPreferencesKey("haptic_enabled")
     val TODAY_DATE     = stringPreferencesKey("today_date")
     val TODAY_STEPS    = intPreferencesKey("today_steps")
     val TODAY_WATER_ML = intPreferencesKey("today_water_ml")
@@ -79,7 +81,8 @@ class UserPreferencesDataStore(private val context: Context) {
                 waterFreq    = p[PrefsKeys.WATER_FREQ]    ?: "1h",
                 moodFreq     = p[PrefsKeys.MOOD_FREQ]     ?: "1h",
                 darkMode     = p[PrefsKeys.DARK_MODE]     ?: false,
-                googleLinked = p[PrefsKeys.GOOGLE_LINKED] ?: false,
+                animationsEnabled = p[PrefsKeys.ANIMATIONS_ENABLED] ?: true,
+                hapticEnabled     = p[PrefsKeys.HAPTIC_ENABLED]     ?: true,
                 todayDate    = p[PrefsKeys.TODAY_DATE]    ?: "",
                 todaySteps   = p[PrefsKeys.TODAY_STEPS]   ?: 0,
                 todayWaterMl = p[PrefsKeys.TODAY_WATER_ML]?: 0,
@@ -111,23 +114,32 @@ class UserPreferencesDataStore(private val context: Context) {
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
         waterFreq: String, moodFreq: String,
-        darkMode: Boolean, googleLinked: Boolean
+        darkMode: Boolean, animationsEnabled: Boolean, hapticEnabled: Boolean
     ) {
         context.appDataStore.edit { p ->
-            p[PrefsKeys.STEPS_GOAL]    = stepsGoal
-            p[PrefsKeys.WATER_GOAL]    = waterGoalMl
-            p[PrefsKeys.NOTIF_WATER]   = notifWater
-            p[PrefsKeys.NOTIF_STEPS]   = notifSteps
-            p[PrefsKeys.NOTIF_MOOD]    = notifMood
-            p[PrefsKeys.WATER_FREQ]    = waterFreq
-            p[PrefsKeys.MOOD_FREQ]     = moodFreq
-            p[PrefsKeys.DARK_MODE]     = darkMode
-            p[PrefsKeys.GOOGLE_LINKED] = googleLinked
+            p[PrefsKeys.STEPS_GOAL]         = stepsGoal
+            p[PrefsKeys.WATER_GOAL]         = waterGoalMl
+            p[PrefsKeys.NOTIF_WATER]        = notifWater
+            p[PrefsKeys.NOTIF_STEPS]        = notifSteps
+            p[PrefsKeys.NOTIF_MOOD]         = notifMood
+            p[PrefsKeys.WATER_FREQ]         = waterFreq
+            p[PrefsKeys.MOOD_FREQ]          = moodFreq
+            p[PrefsKeys.DARK_MODE]          = darkMode
+            p[PrefsKeys.ANIMATIONS_ENABLED] = animationsEnabled
+            p[PrefsKeys.HAPTIC_ENABLED]     = hapticEnabled
         }
     }
 
     suspend fun saveDarkMode(enabled: Boolean) {
         context.appDataStore.edit { p -> p[PrefsKeys.DARK_MODE] = enabled }
+    }
+
+    suspend fun saveHapticEnabled(enabled: Boolean) {
+        context.appDataStore.edit { p -> p[PrefsKeys.HAPTIC_ENABLED] = enabled }
+    }
+
+    suspend fun saveAnimationsEnabled(enabled: Boolean) {
+        context.appDataStore.edit { p -> p[PrefsKeys.ANIMATIONS_ENABLED] = enabled }
     }
 
     suspend fun saveDailyData(
@@ -145,12 +157,64 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun resetDailyData(newDate: String) {
         context.appDataStore.edit { p ->
-            p[PrefsKeys.TODAY_DATE]     = newDate
-            p[PrefsKeys.TODAY_STEPS]    = 0
-            p[PrefsKeys.TODAY_WATER_ML] = 0
-            p[PrefsKeys.TODAY_CALORIES] = 0
-            p[PrefsKeys.TODAY_EMOTION]  = 2
+            p[PrefsKeys.TODAY_DATE]        = newDate
+            p[PrefsKeys.TODAY_STEPS]       = 0
+            p[PrefsKeys.TODAY_WATER_ML]    = 0
+            p[PrefsKeys.TODAY_CALORIES]    = 0
+            p[PrefsKeys.TODAY_EMOTION]     = 2
             p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+        }
+    }
+
+    /**
+     * Operação atómica: se a data guardada for diferente de [today], reseta tudo
+     * e adiciona [addWaterMl] ao novo dia (que começa em 0).
+     * Se for o mesmo dia, soma [addWaterMl] ao valor atual.
+     * Devolve o novo total de água.
+     */
+    suspend fun atomicAddWater(today: String, addWaterMl: Int): Int {
+        var newTotal = 0
+        context.appDataStore.edit { p ->
+            val storedDate = p[PrefsKeys.TODAY_DATE] ?: ""
+            if (storedDate != today) {
+                // Novo dia — reseta tudo primeiro
+                p[PrefsKeys.TODAY_DATE]        = today
+                p[PrefsKeys.TODAY_STEPS]       = 0
+                p[PrefsKeys.TODAY_WATER_ML]    = addWaterMl
+                p[PrefsKeys.TODAY_CALORIES]    = 0
+                p[PrefsKeys.TODAY_EMOTION]     = 2
+                p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+                newTotal = addWaterMl
+            } else {
+                // Mesmo dia — soma
+                val current = p[PrefsKeys.TODAY_WATER_ML] ?: 0
+                newTotal = current + addWaterMl
+                p[PrefsKeys.TODAY_WATER_ML] = newTotal
+            }
+        }
+        return newTotal
+    }
+
+    /**
+     * Operação atómica: se a data guardada for diferente de [today], reseta tudo
+     * e guarda [emotion] para o novo dia.
+     * Se for o mesmo dia, atualiza apenas o humor.
+     */
+    suspend fun atomicSetEmotion(today: String, emotion: Int) {
+        context.appDataStore.edit { p ->
+            val storedDate = p[PrefsKeys.TODAY_DATE] ?: ""
+            if (storedDate != today) {
+                // Novo dia — reseta tudo primeiro
+                p[PrefsKeys.TODAY_DATE]        = today
+                p[PrefsKeys.TODAY_STEPS]       = 0
+                p[PrefsKeys.TODAY_WATER_ML]    = 0
+                p[PrefsKeys.TODAY_CALORIES]    = 0
+                p[PrefsKeys.TODAY_EMOTION]     = emotion
+                p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+            } else {
+                // Mesmo dia — atualiza só o humor
+                p[PrefsKeys.TODAY_EMOTION] = emotion
+            }
         }
     }
 }

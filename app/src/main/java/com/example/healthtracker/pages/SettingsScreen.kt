@@ -104,11 +104,13 @@ fun SettingScreen(
         notifMood        = prefs.notifMood,
         waterFreq        = prefs.waterFreq,
         moodFreq         = prefs.moodFreq,
-        googleLinked     = prefs.googleLinked,
+        animationsEnabled = prefs.animationsEnabled,
+        hapticEnabled    = prefs.hapticEnabled,
         isDarkMode       = isDarkMode,
         onDarkModeToggle = onDarkModeToggle,
-        onSave           = { steps, water, nw, nm, wf, mf, gl ->
-            // Passamos todos os parâmetros necessários para o ViewModel
+        onHapticToggle   = { viewModel.saveHapticEnabled(it) },
+        onAnimationsToggle = { viewModel.saveAnimationsEnabled(it) },
+        onSave           = { steps, water, nw, nm, wf, mf, anim, haptic ->
             viewModel.saveSettings(
                 stepsGoal = steps,
                 waterGoalMl = water,
@@ -118,7 +120,8 @@ fun SettingScreen(
                 waterFreq = wf,
                 moodFreq = mf,
                 darkMode = isDarkMode,
-                googleLinked = gl
+                animationsEnabled = anim,
+                hapticEnabled = haptic
             )
         }
     )
@@ -136,21 +139,25 @@ fun SettingScreenContent(
     notifMood: Boolean = false,
     waterFreq: String = "1h",
     moodFreq: String = "1h",
-    googleLinked: Boolean = false,
+    animationsEnabled: Boolean = true,
+    hapticEnabled: Boolean = true,
     isDarkMode: Boolean = false,
     onDarkModeToggle: (Boolean) -> Unit = {},
-    onSave: (Int, Int, Boolean, Boolean, String, String, Boolean) -> Unit = { _,_,_,_,_,_,_ -> }
+    onHapticToggle: (Boolean) -> Unit = {},
+    onAnimationsToggle: (Boolean) -> Unit = {},
+    onSave: (Int, Int, Boolean, Boolean, String, String, Boolean, Boolean) -> Unit = { _,_,_,_,_,_,_,_ -> }
 ) {
     val c       = AppTheme.colors
     val context = LocalContext.current
 
     var stepsGoalText    by remember(stepsGoal)    { mutableStateOf(stepsGoal.toString()) }
     var waterGoalText    by remember(waterGoalMl)  { mutableStateOf(waterGoalMl.toString()) }
-    var googleState      by remember(googleLinked) { mutableStateOf(googleLinked) }
     var notifWaterState  by remember(notifWater)   { mutableStateOf(notifWater) }
     var notifMoodState   by remember(notifMood)    { mutableStateOf(notifMood) }
     var waterFreqState   by remember(waterFreq)    { mutableStateOf(waterFreq) }
     var moodFreqState    by remember(moodFreq)     { mutableStateOf(moodFreq) }
+    var animState        by remember(animationsEnabled) { mutableStateOf(animationsEnabled) }
+    var hapticState      by remember(hapticEnabled)    { mutableStateOf(hapticEnabled) }
     var settingsSaved    by remember { mutableStateOf(false) }
 
     Column(
@@ -168,6 +175,7 @@ fun SettingScreenContent(
             Text("Definições", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
         }
 
+        // --- MODO ESCURO ---
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -191,33 +199,36 @@ fun SettingScreenContent(
             }
         }
 
+        // --- INTERFACE E EXPERIÊNCIA ---
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_google),
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                        tint = Color.Unspecified
-                    )
-                    Column {
-                        Text("Ligar conta google", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = c.textPrimary)
-                        Text(if (googleState) "Ativado" else "Desativado", fontSize = 12.sp, color = c.textSecondary)
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Experiência", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+                
+                // Toggle Animações
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.Animation, contentDescription = null, tint = c.primary, modifier = Modifier.size(20.dp))
+                        Text("Animações", fontSize = 14.sp, color = c.textPrimary)
                     }
+                    Switch(checked = animState, onCheckedChange = { animState = it; onAnimationsToggle(it); settingsSaved = false },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
                 }
-                Switch(checked = googleState, onCheckedChange = { googleState = it; settingsSaved = false },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White,
-                        checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
+
+                // Toggle Feedback Háptico
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.Vibration, contentDescription = null, tint = c.primary, modifier = Modifier.size(20.dp))
+                        Text("Vibração (Háptica)", fontSize = 14.sp, color = c.textPrimary)
+                    }
+                    Switch(checked = hapticState, onCheckedChange = { hapticState = it; onHapticToggle(it); settingsSaved = false },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = c.primary, uncheckedTrackColor = Color(0xFFCBD5E0)))
+                }
             }
         }
 
+        // --- METAS DIÁRIAS ---
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(containerColor = c.card),
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -242,22 +253,11 @@ fun SettingScreenContent(
                     settingsSaved = false
                 }
 
-                // 🔽 BOTÃO AGORA AQUI
                 Button(
                     onClick = {
                         val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                         val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                        onSave(
-                            steps,
-                            water,
-                            notifWaterState,
-                            notifMoodState,
-                            waterFreqState,
-                            moodFreqState,
-                            googleState
-                        )
-
+                        onSave(steps, water, notifWaterState, notifMoodState, waterFreqState, moodFreqState, animState, hapticState)
                         settingsSaved = true
                     },
                     modifier = Modifier
@@ -309,58 +309,26 @@ fun SettingScreenContent(
                     { isChecked ->
                         notifMoodState = isChecked
                         settingsSaved = false
-
                         if (isChecked) {
                             cancelRepeatingNotification(context, "mood", 101)
-
-                            scheduleRepeatingNotification(
-                                context,
-                                "mood",
-                                NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!,
-                                101
-                            )
+                            scheduleRepeatingNotification(context, "mood", NOTIF_FREQUENCIES[moodFreqState] ?: NOTIF_FREQUENCIES["4h"]!!, 101)
                         } else {
                             cancelRepeatingNotification(context, "mood", 101)
                         }
-
                         val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                         val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                        onSave(
-                            steps, water,
-                            notifWaterState,
-                            notifMoodState,
-                            waterFreqState,
-                            moodFreqState,
-                            googleState
-                        )
+                        onSave(steps, water, notifWaterState, notifMoodState, waterFreqState, moodFreqState, animState, hapticState)
                     },
                     { newFreq ->
                         moodFreqState = newFreq
                         settingsSaved = false
-
                         if (notifMoodState) {
                             cancelRepeatingNotification(context, "mood", 101)
-
-                            scheduleRepeatingNotification(
-                                context,
-                                "mood",
-                                NOTIF_FREQUENCIES[newFreq]!!,
-                                101
-                            )
+                            scheduleRepeatingNotification(context, "mood", NOTIF_FREQUENCIES[newFreq]!!, 101)
                         }
-
                         val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                         val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                        onSave(
-                            steps, water,
-                            notifWaterState,
-                            notifMoodState,
-                            waterFreqState,
-                            moodFreqState,
-                            googleState
-                        )
+                        onSave(steps, water, notifWaterState, notifMoodState, waterFreqState, moodFreqState, animState, hapticState)
                     }
                 )
 
@@ -376,58 +344,26 @@ fun SettingScreenContent(
                     { isChecked ->
                         notifWaterState = isChecked
                         settingsSaved = false
-
                         if (isChecked) {
                             cancelRepeatingNotification(context, "water", 100)
-
-                            scheduleRepeatingNotification(
-                                context,
-                                "water",
-                                NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!,
-                                100
-                            )
+                            scheduleRepeatingNotification(context, "water", NOTIF_FREQUENCIES[waterFreqState] ?: NOTIF_FREQUENCIES["1h"]!!, 100)
                         } else {
                             cancelRepeatingNotification(context, "water", 100)
                         }
-
                         val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                         val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                        onSave(
-                            steps, water,
-                            notifWaterState,
-                            notifMoodState,
-                            waterFreqState,
-                            moodFreqState,
-                            googleState
-                        )
+                        onSave(steps, water, notifWaterState, notifMoodState, waterFreqState, moodFreqState, animState, hapticState)
                     },
                     { newFreq ->
                         waterFreqState = newFreq
                         settingsSaved = false
-
                         if (notifWaterState) {
                             cancelRepeatingNotification(context, "water", 100)
-
-                            scheduleRepeatingNotification(
-                                context,
-                                "water",
-                                NOTIF_FREQUENCIES[newFreq]!!,
-                                100
-                            )
+                            scheduleRepeatingNotification(context, "water", NOTIF_FREQUENCIES[newFreq]!!, 100)
                         }
-
                         val steps = stepsGoalText.toIntOrNull() ?: stepsGoal
                         val water = waterGoalText.toIntOrNull() ?: waterGoalMl
-
-                        onSave(
-                            steps, water,
-                            notifWaterState,
-                            notifMoodState,
-                            waterFreqState,
-                            moodFreqState,
-                            googleState
-                        )
+                        onSave(steps, water, notifWaterState, notifMoodState, waterFreqState, moodFreqState, animState, hapticState)
                     }
                 )
             }
@@ -492,7 +428,7 @@ fun SettingScreenLightPreview() {
     CompositionLocalProvider(LocalAppColors provides LightColors) {
         MaterialTheme {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false, googleLinked = false)
+                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false)
             }
         }
     }
@@ -504,7 +440,7 @@ fun SettingScreenDarkPreview() {
     CompositionLocalProvider(LocalAppColors provides DarkColors) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Scaffold(bottomBar = { BottomNavBar(selectedTab = 2) {} }) { padding ->
-                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true, googleLinked = true)
+                SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true)
             }
         }
     }
@@ -519,7 +455,7 @@ fun SettingScreenTabletLightPreview() {
                 NavRail(selectedTab = 2) {}
                 Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                     Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = LightColors.background) { padding ->
-                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false, googleLinked = false)
+                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = false)
                     }
                 }
             }
@@ -536,7 +472,7 @@ fun SettingScreenTabletDarkPreview() {
                 NavRail(selectedTab = 2) {}
                 Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
                     Scaffold(modifier = Modifier.widthIn(max = 800.dp), containerColor = DarkColors.background) { padding ->
-                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true, googleLinked = true)
+                        SettingScreenContent(modifier = Modifier.padding(padding), isDarkMode = true)
                     }
                 }
             }
