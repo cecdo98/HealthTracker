@@ -26,7 +26,7 @@ class StepForegroundService : Service(), SensorEventListener {
 
         fun start(context: Context) {
             val intent = Intent(context, StepForegroundService::class.java)
-            context.startForegroundService(intent) // startForegroundService em vez de startService
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
@@ -55,11 +55,16 @@ class StepForegroundService : Service(), SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         createNotificationChannel()
-        startForeground(NOTIF_ID, buildNotification(0)) // OBRIGATÓRIO — sem isto o serviço é morto
+        startForeground(NOTIF_ID, buildNotification(0))
 
         // Carrega o estado do DataStore UMA VEZ ao arrancar
         serviceScope.launch {
-            val (today, prefs) = repo.checkAndResetIfNewDay()
+            repo.checkAndResetIfNewDay() // reseta se necessário
+
+            // Lê as prefs já atualizadas após o possível reset
+            val prefs = repo.preferences.first()
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .format(java.util.Date())
 
             todayDate    = today
             currentSteps = prefs.todaySteps
@@ -96,7 +101,6 @@ class StepForegroundService : Service(), SensorEventListener {
         if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
             val totalSinceReboot = event.values[0].toInt()
 
-            // Primeira leitura do dia ou após reboot (total menor que base → reboot aconteceu)
             if (sensorBase == -1 || totalSinceReboot < sensorBase) {
                 sensorBase = totalSinceReboot - currentSteps
                 Log.d(TAG, "Nova base definida: $sensorBase (total=$totalSinceReboot, steps=$currentSteps)")
@@ -105,7 +109,6 @@ class StepForegroundService : Service(), SensorEventListener {
             currentSteps = (totalSinceReboot - sensorBase).coerceAtLeast(0)
 
         } else if (event.sensor.type == Sensor.TYPE_STEP_DETECTOR) {
-            // STEP_DETECTOR: cada evento = 1 passo
             currentSteps++
         }
 
@@ -113,19 +116,25 @@ class StepForegroundService : Service(), SensorEventListener {
         scheduleSave()
     }
 
-    /** Persiste no DataStore com debounce de 1 segundo — evita escritas excessivas */
     private fun scheduleSave() {
         lastSaveJob?.cancel()
         lastSaveJob = serviceScope.launch {
             delay(1_000)
 
-            // Verifica se o dia mudou (meia-noite passou enquanto o serviço corria)
-            val (newDate, _) = repo.checkAndResetIfNewDay()
-            if (newDate != todayDate) {
-                Log.d(TAG, "Novo dia detetado no serviço: $newDate — resetando base")
-                todayDate  = newDate
-                sensorBase = -1 // Força recalcular a base para o novo dia
+            // Verifica se o dia mudou enquanto o serviço estava ativo
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .format(java.util.Date())
+
+            if (today != todayDate) {
+                Log.d(TAG, "Novo dia detetado no serviço: $today — resetando base")
+                repo.checkAndResetIfNewDay()
+                todayDate    = today
+                sensorBase   = -1
                 currentSteps = 0
+                // Atualiza água e humor do novo dia
+                val prefs = repo.preferences.first()
+                todayWaterMl = prefs.todayWaterMl
+                todayEmotion = prefs.todayEmotion
             }
 
             val calories = (currentSteps * 0.04f).toInt()
@@ -135,18 +144,17 @@ class StepForegroundService : Service(), SensorEventListener {
         }
     }
 
-    // ── Notificação (obrigatória para Foreground Service) ─────────────────────
+    // ── Notificação ───────────────────────────────────────────────────────────
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Contador de Passos",
-            NotificationManager.IMPORTANCE_LOW // LOW = sem som, aparece na barra
+            NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Mantém o contador de passos ativo em segundo plano"
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     private fun buildNotification(steps: Int) =
@@ -154,14 +162,13 @@ class StepForegroundService : Service(), SensorEventListener {
             .setContentTitle("Health Tracker")
             .setContentText("$steps passos hoje")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)      // Não pode ser dispensada pelo utilizador
-            .setSilent(true)       // Sem som
-            .setLocalOnly(true)    // Não reencaminha para relógio ou outros wearables
+            .setOngoing(true)
+            .setSilent(true)
+            .setLocalOnly(true)
             .build()
 
     private fun updateNotification(steps: Int) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIF_ID, buildNotification(steps))
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification(steps))
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

@@ -30,7 +30,7 @@ data class UserPreferences(
     val todayWaterMl:  Int    = 0,
     val todayCalories: Int    = 0,
     val todayEmotion:  Int    = 2,
-    val stepsSensorBase: Int  = -1 // Nova chave para persistir a base do sensor
+    val stepsSensorBase: Int  = -1
 )
 
 object PrefsKeys {
@@ -145,12 +145,64 @@ class UserPreferencesDataStore(private val context: Context) {
 
     suspend fun resetDailyData(newDate: String) {
         context.appDataStore.edit { p ->
-            p[PrefsKeys.TODAY_DATE]     = newDate
-            p[PrefsKeys.TODAY_STEPS]    = 0
-            p[PrefsKeys.TODAY_WATER_ML] = 0
-            p[PrefsKeys.TODAY_CALORIES] = 0
-            p[PrefsKeys.TODAY_EMOTION]  = 2
+            p[PrefsKeys.TODAY_DATE]        = newDate
+            p[PrefsKeys.TODAY_STEPS]       = 0
+            p[PrefsKeys.TODAY_WATER_ML]    = 0
+            p[PrefsKeys.TODAY_CALORIES]    = 0
+            p[PrefsKeys.TODAY_EMOTION]     = 2
             p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+        }
+    }
+
+    /**
+     * Operação atómica: se a data guardada for diferente de [today], reseta tudo
+     * e adiciona [addWaterMl] ao novo dia (que começa em 0).
+     * Se for o mesmo dia, soma [addWaterMl] ao valor atual.
+     * Devolve o novo total de água.
+     */
+    suspend fun atomicAddWater(today: String, addWaterMl: Int): Int {
+        var newTotal = 0
+        context.appDataStore.edit { p ->
+            val storedDate = p[PrefsKeys.TODAY_DATE] ?: ""
+            if (storedDate != today) {
+                // Novo dia — reseta tudo primeiro
+                p[PrefsKeys.TODAY_DATE]        = today
+                p[PrefsKeys.TODAY_STEPS]       = 0
+                p[PrefsKeys.TODAY_WATER_ML]    = addWaterMl
+                p[PrefsKeys.TODAY_CALORIES]    = 0
+                p[PrefsKeys.TODAY_EMOTION]     = 2
+                p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+                newTotal = addWaterMl
+            } else {
+                // Mesmo dia — soma
+                val current = p[PrefsKeys.TODAY_WATER_ML] ?: 0
+                newTotal = current + addWaterMl
+                p[PrefsKeys.TODAY_WATER_ML] = newTotal
+            }
+        }
+        return newTotal
+    }
+
+    /**
+     * Operação atómica: se a data guardada for diferente de [today], reseta tudo
+     * e guarda [emotion] para o novo dia.
+     * Se for o mesmo dia, atualiza apenas o humor.
+     */
+    suspend fun atomicSetEmotion(today: String, emotion: Int) {
+        context.appDataStore.edit { p ->
+            val storedDate = p[PrefsKeys.TODAY_DATE] ?: ""
+            if (storedDate != today) {
+                // Novo dia — reseta tudo primeiro
+                p[PrefsKeys.TODAY_DATE]        = today
+                p[PrefsKeys.TODAY_STEPS]       = 0
+                p[PrefsKeys.TODAY_WATER_ML]    = 0
+                p[PrefsKeys.TODAY_CALORIES]    = 0
+                p[PrefsKeys.TODAY_EMOTION]     = emotion
+                p[PrefsKeys.STEPS_SENSOR_BASE] = -1
+            } else {
+                // Mesmo dia — atualiza só o humor
+                p[PrefsKeys.TODAY_EMOTION] = emotion
+            }
         }
     }
 }
