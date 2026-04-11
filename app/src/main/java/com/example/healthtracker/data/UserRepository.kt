@@ -36,15 +36,17 @@ class UserRepository(context: Context) {
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
         waterFreq: String, moodFreq: String,
-        darkMode: Boolean, googleLinked: Boolean
+        darkMode: Boolean, animationsEnabled: Boolean, hapticEnabled: Boolean
     ) = dataStore.saveSettings(
         stepsGoal, waterGoalMl,
         notifWater, notifSteps, notifMood,
         waterFreq, moodFreq,
-        darkMode, googleLinked
+        darkMode, animationsEnabled, hapticEnabled
     )
 
     suspend fun saveDarkMode(enabled: Boolean) = dataStore.saveDarkMode(enabled)
+    suspend fun saveHapticEnabled(enabled: Boolean) = dataStore.saveHapticEnabled(enabled)
+    suspend fun saveAnimationsEnabled(enabled: Boolean) = dataStore.saveAnimationsEnabled(enabled)
 
     // ── Dados diários ─────────────────────────────────────────────────────────
 
@@ -52,6 +54,9 @@ class UserRepository(context: Context) {
         date: String, steps: Int, waterMl: Int,
         calories: Int, emotion: Int, sensorBase: Int = -1
     ) = dataStore.saveDailyData(date, steps, waterMl, calories, emotion, sensorBase)
+
+    suspend fun saveStepsData(date: String, steps: Int, calories: Int, sensorBase: Int) =
+        dataStore.saveStepsData(date, steps, calories, sensorBase)
 
     suspend fun resetDailyData(newDate: String) = dataStore.resetDailyData(newDate)
 

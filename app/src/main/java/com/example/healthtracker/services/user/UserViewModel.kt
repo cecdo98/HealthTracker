@@ -81,25 +81,34 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         stepsGoal: Int, waterGoalMl: Int,
         notifWater: Boolean, notifSteps: Boolean, notifMood: Boolean,
         waterFreq: String, moodFreq: String,
-        darkMode: Boolean, googleLinked: Boolean
+        darkMode: Boolean, animationsEnabled: Boolean, hapticEnabled: Boolean
     ) {
         viewModelScope.launch {
             repo.saveSettings(
-                stepsGoal    = stepsGoal,
-                waterGoalMl  = waterGoalMl,
-                notifWater   = notifWater,
-                notifSteps   = notifSteps,
-                notifMood    = notifMood,
-                waterFreq    = waterFreq,
-                moodFreq     = moodFreq,
-                darkMode     = darkMode,
-                googleLinked = googleLinked
+                stepsGoal         = stepsGoal,
+                waterGoalMl       = waterGoalMl,
+                notifWater        = notifWater,
+                notifSteps        = notifSteps,
+                notifMood         = notifMood,
+                waterFreq         = waterFreq,
+                moodFreq          = moodFreq,
+                darkMode          = darkMode,
+                animationsEnabled = animationsEnabled,
+                hapticEnabled     = hapticEnabled
             )
         }
     }
 
     fun saveDarkMode(enabled: Boolean) {
         viewModelScope.launch { repo.saveDarkMode(enabled) }
+    }
+
+    fun saveHapticEnabled(enabled: Boolean) {
+        viewModelScope.launch { repo.saveHapticEnabled(enabled) }
+    }
+
+    fun saveAnimationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { repo.saveAnimationsEnabled(enabled) }
     }
 
     // ── Dados diários ─────────────────────────────────────────────────────────
