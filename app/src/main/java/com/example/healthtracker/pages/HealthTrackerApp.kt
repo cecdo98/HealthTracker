@@ -1,5 +1,9 @@
 package com.example.healthtracker.pages
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -82,6 +86,35 @@ fun HealthTrackerScreen(
     val history by userViewModel.historyEntries.collectAsState()
     val useNavRail = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
+    // Launcher para entrada de voz (Água)
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.get(0) ?: ""
+                if (spokenText.isNotEmpty()) {
+                    val ml = spokenText.filter { it.isDigit() }.toIntOrNull()
+                    if (ml != null) {
+                        userViewModel.addWater(ml)
+                    }
+                }
+            }
+        }
+    )
+
+    val startVoiceWaterInput = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Fale a quantidade de água (ex: 250)...")
+        }
+        try {
+            speechLauncher.launch(intent)
+        } catch (e: Exception) {
+            // Não suportado
+        }
+    }
+
     Row(modifier = Modifier.fillMaxSize()) {
         if (useNavRail) {
             NavRail(selectedTab) {
@@ -161,6 +194,7 @@ fun HealthTrackerScreen(
                                     onStepsClick = { showStepDetails = true },
                                     onEmotionClick = { showEmotionDetails = true },
                                     onWaterClick = { showWaterDetails = true },
+                                    onVoiceWaterClick = startVoiceWaterInput,
                                     isExpanded = useNavRail,
                                     profilePictureUri = prefs.profilePictureUri
                                 )
@@ -222,6 +256,7 @@ fun HomeScreenContent(
     todayEmotion: Int = 2, todayWaterMl: Int = 0, waterGoalMl: Int = 2500,
     onEmotionSelected: (Int) -> Unit = {}, onAddWater: (Int) -> Unit = {},
     onStepsClick: () -> Unit = {}, onEmotionClick: () -> Unit = {}, onWaterClick: () -> Unit = {},
+    onVoiceWaterClick: () -> Unit = {},
     isExpanded: Boolean = false, profilePictureUri: String? = null
 ) {
     val c = AppTheme.colors
@@ -240,7 +275,7 @@ fun HomeScreenContent(
         }
 
         Box(modifier = Modifier.clickable { onWaterClick() }) {
-            WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater)
+            WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater, onMicClick = onVoiceWaterClick)
         }
     }
 }
@@ -361,13 +396,18 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}) {
+fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}, onMicClick: () -> Unit = {}) {
     val c = AppTheme.colors
     val progress = if (goalMl > 0) totalMl.toFloat() / goalMl.toFloat() else 0f
     val cupOptions = listOf(200, 250, 300, 350)
     ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Quantidade de água", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Quantidade de água", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+                IconButton(onClick = onMicClick) {
+                    Icon(Icons.Default.Mic, contentDescription = "Inserir por voz", tint = c.primary, modifier = Modifier.size(20.dp))
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
