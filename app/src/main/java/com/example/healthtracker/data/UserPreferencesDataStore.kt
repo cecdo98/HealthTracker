@@ -142,6 +142,15 @@ class UserPreferencesDataStore(private val context: Context) {
         context.appDataStore.edit { p -> p[PrefsKeys.ANIMATIONS_ENABLED] = enabled }
     }
 
+    suspend fun saveStepsData(date: String, steps: Int, calories: Int, sensorBase: Int) {
+        context.appDataStore.edit { p ->
+            p[PrefsKeys.TODAY_DATE]        = date
+            p[PrefsKeys.TODAY_STEPS]       = steps
+            p[PrefsKeys.TODAY_CALORIES]    = calories
+            p[PrefsKeys.STEPS_SENSOR_BASE] = sensorBase
+        }
+    }
+
     suspend fun saveDailyData(
         date: String, steps: Int, waterMl: Int, calories: Int, emotion: Int, sensorBase: Int = -1
     ) {

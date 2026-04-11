@@ -39,14 +39,10 @@ class StepForegroundService : Service(), SensorEventListener {
     private lateinit var repo: UserRepository
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Estado local — evita ler o DataStore a cada evento do sensor
     private var sensorBase = -1
     private var currentSteps = 0
     private var todayDate = ""
-    private var todayWaterMl = 0
-    private var todayEmotion = 2
 
-    // Debounce: só persiste no DataStore no máximo 1x por segundo
     private var lastSaveJob: Job? = null
 
     override fun onCreate() {
@@ -57,11 +53,9 @@ class StepForegroundService : Service(), SensorEventListener {
         createNotificationChannel()
         startForeground(NOTIF_ID, buildNotification(0))
 
-        // Carrega o estado do DataStore UMA VEZ ao arrancar
         serviceScope.launch {
-            repo.checkAndResetIfNewDay() // reseta se necessário
+            repo.checkAndResetIfNewDay()
 
-            // Lê as prefs já atualizadas após o possível reset
             val prefs = repo.preferences.first()
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                 .format(java.util.Date())
@@ -69,8 +63,6 @@ class StepForegroundService : Service(), SensorEventListener {
             todayDate    = today
             currentSteps = prefs.todaySteps
             sensorBase   = prefs.stepsSensorBase
-            todayWaterMl = prefs.todayWaterMl
-            todayEmotion = prefs.todayEmotion
 
             Log.d(TAG, "Serviço iniciado — steps=$currentSteps, base=$sensorBase, data=$todayDate")
 
@@ -121,7 +113,6 @@ class StepForegroundService : Service(), SensorEventListener {
         lastSaveJob = serviceScope.launch {
             delay(1_000)
 
-            // Verifica se o dia mudou enquanto o serviço estava ativo
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                 .format(java.util.Date())
 
@@ -131,20 +122,15 @@ class StepForegroundService : Service(), SensorEventListener {
                 todayDate    = today
                 sensorBase   = -1
                 currentSteps = 0
-                // Atualiza água e humor do novo dia
-                val prefs = repo.preferences.first()
-                todayWaterMl = prefs.todayWaterMl
-                todayEmotion = prefs.todayEmotion
             }
 
             val calories = (currentSteps * 0.04f).toInt()
-            repo.saveDailyData(todayDate, currentSteps, todayWaterMl, calories, todayEmotion, sensorBase)
+            // Usamos saveStepsData para não mexer na água nem no humor
+            repo.saveStepsData(todayDate, currentSteps, calories, sensorBase)
 
             Log.d(TAG, "Guardado: steps=$currentSteps, base=$sensorBase")
         }
     }
-
-    // ── Notificação ───────────────────────────────────────────────────────────
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(

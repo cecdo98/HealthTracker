@@ -55,6 +55,9 @@ class UserRepository(context: Context) {
         calories: Int, emotion: Int, sensorBase: Int = -1
     ) = dataStore.saveDailyData(date, steps, waterMl, calories, emotion, sensorBase)
 
+    suspend fun saveStepsData(date: String, steps: Int, calories: Int, sensorBase: Int) =
+        dataStore.saveStepsData(date, steps, calories, sensorBase)
+
     suspend fun resetDailyData(newDate: String) = dataStore.resetDailyData(newDate)
 
     suspend fun saveEntryToHistory(
