@@ -4,6 +4,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -42,6 +43,7 @@ import java.util.Locale
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import kotlinx.coroutines.delay
 
 // ─────────────────────────────────────────────
 //  ENTRY POINT
@@ -189,6 +191,7 @@ fun HealthTrackerScreen(
                                     todayEmotion = prefs.todayEmotion,
                                     todayWaterMl = prefs.todayWaterMl,
                                     waterGoalMl = prefs.waterGoalMl,
+                                    animationsEnabled = prefs.animationsEnabled,
                                     onEmotionSelected = { userViewModel.setEmotion(it) },
                                     onAddWater = { userViewModel.addWater(it) },
                                     onStepsClick = { showStepDetails = true },
@@ -254,6 +257,7 @@ fun HomeScreenContent(
     firstName: String = "", lastName: String = "",
     todaySteps: Int = 0, stepsGoal: Int = 10000,
     todayEmotion: Int = 2, todayWaterMl: Int = 0, waterGoalMl: Int = 2500,
+    animationsEnabled: Boolean = true,
     onEmotionSelected: (Int) -> Unit = {}, onAddWater: (Int) -> Unit = {},
     onStepsClick: () -> Unit = {}, onEmotionClick: () -> Unit = {}, onWaterClick: () -> Unit = {},
     onVoiceWaterClick: () -> Unit = {},
@@ -266,17 +270,42 @@ fun HomeScreenContent(
     ) {
         HeaderSection(firstName = firstName, lastName = lastName, profilePictureUri = profilePictureUri)
 
-        Box(modifier = Modifier.clickable { onStepsClick() }) {
-            StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded)
+        HomeCardWrapper(animationsEnabled, index = 1) {
+            Box(modifier = Modifier.clickable { onStepsClick() }) {
+                StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded, animationsEnabled = animationsEnabled)
+            }
         }
 
-        Box(modifier = Modifier.clickable { onEmotionClick() }) {
-            EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected)
+        HomeCardWrapper(animationsEnabled, index = 2) {
+            Box(modifier = Modifier.clickable { onEmotionClick() }) {
+                EmotionalStateCard(selectedEmotion = todayEmotion, onEmotionSelected = onEmotionSelected, animationsEnabled = animationsEnabled)
+            }
         }
 
-        Box(modifier = Modifier.clickable { onWaterClick() }) {
-            WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater, onMicClick = onVoiceWaterClick)
+        HomeCardWrapper(animationsEnabled, index = 3) {
+            Box(modifier = Modifier.clickable { onWaterClick() }) {
+                WaterIntakeCard(totalMl = todayWaterMl, goalMl = waterGoalMl, onAddWater = onAddWater, onMicClick = onVoiceWaterClick, animationsEnabled = animationsEnabled)
+            }
         }
+    }
+}
+
+@Composable
+fun HomeCardWrapper(animationsEnabled: Boolean, index: Int, content: @Composable () -> Unit) {
+    if (animationsEnabled) {
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay((index * 100).toLong())
+            visible = true
+        }
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(600)) + slideInVertically(initialOffsetY = { 60 }, animationSpec = tween(600, easing = EaseOutBack))
+        ) {
+            content()
+        }
+    } else {
+        content()
     }
 }
 
@@ -314,7 +343,7 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
 // ─────────────────────────────────────────────
 
 @Composable
-fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean = false) {
+fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean = false, animationsEnabled: Boolean = true) {
     val c = AppTheme.colors
     val progress = if (stepsGoal > 0) stepsCurrent.toFloat() / stepsGoal.toFloat() else 0f
     val distanceKm = stepsCurrent * 0.00078f
@@ -335,8 +364,14 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean
                 horizontalArrangement = if (isExpanded) Arrangement.SpaceBetween else Arrangement.Start
             ) {
                 Box(modifier = Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressRing(progress = progress, trackColor = c.primary.copy(alpha = 0.15f),
-                        activeColor = c.primary, size = 72.dp, strokeWidth = 8.dp)
+                    CircularProgressRing(
+                        progress = progress, 
+                        trackColor = c.primary.copy(alpha = 0.15f),
+                        activeColor = c.primary, 
+                        size = 72.dp, 
+                        strokeWidth = 8.dp,
+                        animationsEnabled = animationsEnabled
+                    )
                     Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = c.primary, modifier = Modifier.size(32.dp))
                 }
 
@@ -355,8 +390,12 @@ fun StepsCard(stepsCurrent: Int = 0, stepsGoal: Int = 10000, isExpanded: Boolean
 }
 
 @Composable
-fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp) {
-    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(1000, easing = FastOutSlowInEasing), label = "progress")
+fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color, size: Dp, strokeWidth: Dp, animationsEnabled: Boolean = true) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress, 
+        animationSpec = if (animationsEnabled) tween(1000, easing = FastOutSlowInEasing) else snap(), 
+        label = "progress"
+    )
     Canvas(modifier = Modifier.size(size)) {
         val stroke = strokeWidth.toPx()
         val diameter = minOf(this.size.width, this.size.height) - stroke
@@ -367,7 +406,7 @@ fun CircularProgressRing(progress: Float, trackColor: Color, activeColor: Color,
 }
 
 @Composable
-fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}) {
+fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Unit = {}, animationsEnabled: Boolean = true) {
     val c = AppTheme.colors
     val emotions = listOf("😄" to "Muito Bom", "🙂" to "Bom", "😐" to "Neutro", "😢" to "Triste", "😤" to "Estressado")
     ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.elevatedCardColors(containerColor = c.card), elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)) {
@@ -379,11 +418,22 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
                 emotions.forEachIndexed { index, item ->
                     val (emoji, label) = item
                     val isSelected = selectedEmotion == index
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent)
-                        .clickable { onEmotionSelected(index) }
-                        .padding(horizontal = 6.dp, vertical = 6.dp)) {
+                    
+                    val scale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.15f else 1f,
+                        animationSpec = if (animationsEnabled) spring(dampingRatio = Spring.DampingRatioMediumBouncy) else snap(),
+                        label = "scale"
+                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally, 
+                        modifier = Modifier
+                            .graphicsLayer(scaleX = scale, scaleY = scale)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) c.primary.copy(alpha = 0.12f) else Color.Transparent)
+                            .clickable { onEmotionSelected(index) }
+                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                    ) {
                         Text(text = emoji, fontSize = 26.sp)
                         Spacer(Modifier.height(2.dp))
                         Text(text = label, fontSize = 9.sp, color = if (isSelected) c.primary else c.textSecondary, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center)
@@ -396,7 +446,7 @@ fun EmotionalStateCard(selectedEmotion: Int = 2, onEmotionSelected: (Int) -> Uni
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}, onMicClick: () -> Unit = {}) {
+fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> Unit = {}, onMicClick: () -> Unit = {}, animationsEnabled: Boolean = true) {
     val c = AppTheme.colors
     val progress = if (goalMl > 0) totalMl.toFloat() / goalMl.toFloat() else 0f
     val cupOptions = listOf(200, 250, 300, 350)
@@ -411,7 +461,7 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    WaterBottle(progress = progress, modifier = Modifier.size(72.dp))
+                    WaterBottle(progress = progress, modifier = Modifier.size(72.dp), animationsEnabled = animationsEnabled)
                     Spacer(Modifier.height(4.dp))
                     Text("${totalMl}ml", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = c.primary)
                     Text("de ${goalMl}ml", fontSize = 11.sp, color = c.textSecondary)
@@ -451,9 +501,13 @@ fun WaterIntakeCard(totalMl: Int = 0, goalMl: Int = 2500, onAddWater: (Int) -> U
 }
 
 @Composable
-fun WaterBottle(progress: Float, modifier: Modifier = Modifier) {
+fun WaterBottle(progress: Float, modifier: Modifier = Modifier, animationsEnabled: Boolean = true) {
     val c = AppTheme.colors
-    val waterLevel by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), animationSpec = tween(1500, easing = EaseInOutSine), label = "water")
+    val waterLevel by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f), 
+        animationSpec = if (animationsEnabled) tween(1500, easing = EaseInOutSine) else snap(), 
+        label = "water"
+    )
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
