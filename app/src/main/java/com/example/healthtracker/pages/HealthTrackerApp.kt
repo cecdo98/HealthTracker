@@ -270,6 +270,13 @@ fun HomeScreenContent(
     ) {
         HeaderSection(firstName = firstName, lastName = lastName, profilePictureUri = profilePictureUri)
 
+        // Recomendação emocional
+        if (todayEmotion == 3 || todayEmotion == 4) {
+            HomeCardWrapper(animationsEnabled, index = 0) {
+                RecommendationCard(emotionIndex = todayEmotion)
+            }
+        }
+
         HomeCardWrapper(animationsEnabled, index = 1) {
             Box(modifier = Modifier.clickable { onStepsClick() }) {
                 StepsCard(stepsCurrent = todaySteps, stepsGoal = stepsGoal, isExpanded = isExpanded, animationsEnabled = animationsEnabled)
@@ -330,9 +337,47 @@ fun HeaderSection(firstName: String = "", lastName: String = "", profilePictureU
         }
         Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(Brush.linearGradient(colors = listOf(c.primary, Color(0xFF6AB0F5)))), contentAlignment = Alignment.Center) {
             if (profilePictureUri != null) {
-                AsyncImage(model = profilePictureUri, contentDescription = "Foto de perfil", modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
+                AsyncImage(model = profilePictureUri, contentDescription = "Foto de perfil", modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop )
             } else {
                 Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun RecommendationCard(emotionIndex: Int) {
+    val c = AppTheme.colors
+    val (title, message, icon) = when (emotionIndex) {
+        3 -> Triple("Que tal um pouco de ar fresco?", "Sair para uma pequena caminhada pode ajudar a melhorar o teu humor.", Icons.Default.DirectionsRun)
+        4 -> Triple("Respira fundo...", "Beber um copo de água e praticar respiração profunda pode ajudar a reduzir o estresse.", Icons.Default.SelfImprovement)
+        else -> Triple("", "", Icons.Default.Info)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFE8F1FB)
+        ),
+        border = BorderStroke(1.dp, Color(0xFFBDD4F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // remove shadow, flat looks cleaner here
+    )
+    {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = c.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Column {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = c.textPrimary)
+                Text(message, fontSize = 13.sp, color = c.textSecondary)
             }
         }
     }
